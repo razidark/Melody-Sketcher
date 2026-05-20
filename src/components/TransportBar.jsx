@@ -8,7 +8,9 @@ import {
   Trash2, 
   Sliders,
   Timer,
-  Disc3
+  Disc3,
+  Rewind,
+  FastForward
 } from 'lucide-react';
 
 const RHYTHM_MODES = ['off', 'auto', 'four-floor', 'boom-bap', 'ballad'];
@@ -23,6 +25,7 @@ const RHYTHM_LABELS = {
 export default function TransportBar({
   isPlaying,
   togglePlay,
+  seekSeconds,
   isRecording,
   setIsRecording,
   playheadPosition,
@@ -200,6 +203,15 @@ export default function TransportBar({
           <Radio className={`w-5 h-5 ${isRecording ? 'animate-pulse' : ''}`} />
         </button>
 
+        {/* Seek -10s */}
+        <button
+          onClick={() => seekSeconds && seekSeconds(-10)}
+          className="w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer hover:scale-[1.05] active:scale-95 glass-gloss text-slate-400 hover:text-white"
+          title="Rewind 10 Seconds"
+        >
+          <Rewind className="w-4 h-4 fill-current" />
+        </button>
+
         {/* Play/Stop */}
         <button 
           onClick={togglePlay}
@@ -219,6 +231,15 @@ export default function TransportBar({
           {isPlaying 
             ? <Square className="w-6 h-6 fill-white text-white drop-shadow-md" /> 
             : <Play className="w-7 h-7 fill-black text-black ml-1.5 drop-shadow-md" />}
+        </button>
+
+        {/* Seek +10s */}
+        <button
+          onClick={() => seekSeconds && seekSeconds(10)}
+          className="w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer hover:scale-[1.05] active:scale-95 glass-gloss text-slate-400 hover:text-white"
+          title="Forward 10 Seconds"
+        >
+          <FastForward className="w-4 h-4 fill-current" />
         </button>
 
         {/* Position + Progress + Mini Visualizer */}

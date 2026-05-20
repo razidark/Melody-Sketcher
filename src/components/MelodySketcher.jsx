@@ -500,6 +500,36 @@ export default function MelodySketcher() {
     }
   }, [isPlaying]);
 
+  // Seek by seconds
+  const seekSeconds = useCallback(async (deltaSeconds) => {
+    if (Tone.context.state !== 'running') await Tone.start();
+    
+    const currentTick = playheadPositionRef.current;
+    const beatDuration = 60 / bpm;
+    const currentTickSeconds = (currentTick / 4) * beatDuration;
+    
+    let targetSeconds = currentTickSeconds + deltaSeconds;
+    const totalSeconds = (totalTicks / 4) * beatDuration;
+    
+    // Wrap around boundaries
+    targetSeconds = (targetSeconds % totalSeconds + totalSeconds) % totalSeconds;
+    
+    Tone.Transport.seconds = targetSeconds;
+    
+    const targetTick = Math.round((targetSeconds / beatDuration) * 4) % totalTicks;
+    playheadPositionRef.current = targetTick;
+    setPlayheadPosition(targetTick);
+    
+    const playheadEl = document.getElementById('studio-playhead-line');
+    if (playheadEl) {
+      playheadEl.style.left = `${targetTick * beatWidthRef.current}px`;
+    }
+    const progressBarEl = document.getElementById('timeline-progress-bar');
+    if (progressBarEl) {
+      progressBarEl.style.width = `${(targetTick / totalTicks) * 100}%`;
+    }
+  }, [bpm, totalTicks]);
+
   // Keyboard QWERTY MIDI Hook
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1106,10 +1136,10 @@ export default function MelodySketcher() {
         transposeActiveTrack={transposeActiveTrack}
       />
 
-      {/* Bottom Transport Control console bar */}
       <TransportBar 
         isPlaying={isPlaying}
         togglePlay={togglePlay}
+        seekSeconds={seekSeconds}
         isRecording={isRecording}
         setIsRecording={setIsRecording}
         playheadPosition={playheadPosition}
