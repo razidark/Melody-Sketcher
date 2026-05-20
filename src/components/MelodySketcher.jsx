@@ -915,7 +915,7 @@ export default function MelodySketcher() {
 
   return (
     <div 
-      className="flex flex-col fixed inset-0 overflow-hidden text-white font-['Outfit'] bg-[#020203]" 
+      className="flex flex-col fixed inset-0 overflow-hidden text-white font-['Outfit'] bg-[#020203] p-4.5" 
       ref={containerRef}
       onPointerDown={() => {
         if (Tone.context.state !== 'running') {
@@ -923,6 +923,9 @@ export default function MelodySketcher() {
         }
       }}
     >
+      
+      {/* Outer DAW Floating Shell */}
+      <div className="flex-1 flex flex-col overflow-hidden rounded-[24px] border border-white/[0.08] bg-zinc-950/20 backdrop-blur-3xl shadow-[0_24px_80px_rgba(0,0,0,0.85)] relative">
       
       {/* CSS hardware accelerated peak decay and dynamic theme overrides */}
       <style>{`
@@ -1062,6 +1065,21 @@ export default function MelodySketcher() {
           )}
         </AnimatePresence>
 
+        {/* Studio Utilities Dashboard */}
+        <AnimatePresence>
+          {isDashboardOpen && (
+            <StudioDashboard 
+              activeLayer={activeLayer}
+              setLayers={setLayers}
+              currentTheme={currentTheme}
+              setCurrentTheme={setCurrentTheme}
+              customThemes={customThemes}
+              setCustomThemes={setCustomThemes}
+              closeDashboard={() => setIsDashboardOpen(false)}
+            />
+          )}
+        </AnimatePresence>
+
         {/* Floating Instrument Selector Menu */}
         <AnimatePresence>
           {isInstrumentMenuOpen && (
@@ -1123,6 +1141,8 @@ export default function MelodySketcher() {
         analyserRef={analyserRef}
       />
 
+      </div>
+
       {/* High-Fidelity Rendering Modal Overlay */}
       <AnimatePresence>
         {isExporting && (
@@ -1173,20 +1193,6 @@ export default function MelodySketcher() {
         )}
       </AnimatePresence>
 
-      {/* Studio Utilities Dashboard */}
-      <AnimatePresence>
-        {isDashboardOpen && (
-          <StudioDashboard 
-            activeLayer={activeLayer}
-            setLayers={setLayers}
-            currentTheme={currentTheme}
-            setCurrentTheme={setCurrentTheme}
-            customThemes={customThemes}
-            setCustomThemes={setCustomThemes}
-            closeDashboard={() => setIsDashboardOpen(false)}
-          />
-        )}
-      </AnimatePresence>
 
       {/* Interactive Guide */}
       <AnimatePresence>

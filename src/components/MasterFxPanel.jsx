@@ -195,7 +195,7 @@ export default function MasterFxPanel({
         </div>
         <button 
           onClick={closePanel} 
-          className="w-8 h-8 rounded-xl hover:bg-white/10 flex items-center justify-center transition-all cursor-pointer border border-white/5 hover:border-white/15 active:scale-90"
+          className="w-8 h-8 rounded-xl glass-gloss flex items-center justify-center transition-all cursor-pointer active:scale-90"
         >
           <X className="w-5 h-5 text-slate-400 hover:text-white" />
         </button>

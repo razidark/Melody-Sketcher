@@ -156,7 +156,7 @@ export default function HeaderBar({
         <div className="relative">
           <button
             onClick={() => { setIsFileMenuOpen(!isFileMenuOpen); setIsDemoMenuOpen(false); setIsThemeMenuOpen(false); }}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-white/15 hover:bg-white/[0.06] transition-all text-[11px] font-black uppercase tracking-wider text-slate-200 hover:text-white cursor-pointer shadow-md hover:scale-[1.02] active:scale-95"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl glass-gloss transition-all text-[11px] font-black uppercase tracking-wider text-slate-200 hover:text-white cursor-pointer hover:scale-[1.02] active:scale-95"
           >
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">File</span>
@@ -200,7 +200,7 @@ export default function HeaderBar({
         <div className="relative">
           <button
             onClick={() => { setIsDemoMenuOpen(!isDemoMenuOpen); setIsFileMenuOpen(false); setIsThemeMenuOpen(false); }}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 hover:border-indigo-400/40 text-indigo-300 hover:text-indigo-200 transition-all text-[11px] font-black uppercase tracking-wider cursor-pointer shadow-md hover:scale-[1.02] active:scale-95"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl glass-gloss text-indigo-300 hover:text-indigo-200 transition-all text-[11px] font-black uppercase tracking-wider cursor-pointer hover:scale-[1.02] active:scale-95"
           >
             <Sparkles className="w-4 h-4" />
             <span className="hidden sm:inline">Demos</span>
@@ -238,7 +238,7 @@ export default function HeaderBar({
         {/* Instrument Selector */}
         <button
           onClick={() => setIsInstrumentMenuOpen(!isInstrumentMenuOpen)}
-          className="flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-white/15 transition-all cursor-pointer group shadow-md hover:scale-[1.02] active:scale-95"
+          className="flex items-center gap-3 px-5 py-2.5 rounded-2xl glass-gloss transition-all cursor-pointer group hover:scale-[1.02] active:scale-95"
         >
           <span className="text-xl group-hover:scale-110 transition-transform">{currentInstrument.icon}</span>
           <div className="hidden lg:flex flex-col text-left select-none">
@@ -251,10 +251,10 @@ export default function HeaderBar({
         {/* FX Toggle */}
         <button
           onClick={() => setIsFxOpen(!isFxOpen)}
-          className={`w-11 h-11 rounded-2xl flex items-center justify-center border transition-all duration-300 relative group cursor-pointer shadow-md hover:scale-[1.02] active:scale-95 ${
+          className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 relative group cursor-pointer hover:scale-[1.02] active:scale-95 ${
             isFxOpen 
               ? 'bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.25)]' 
-              : 'bg-white/[0.03] border-white/[0.08] hover:border-white/20 text-slate-300 hover:text-white'
+              : 'glass-gloss text-slate-300 hover:text-white'
           }`}
           title="Master FX"
         >
@@ -265,10 +265,10 @@ export default function HeaderBar({
         {/* Studio Utilities Dashboard Toggle */}
         <button
           onClick={() => { setIsDashboardOpen(!isDashboardOpen); setIsFxOpen(false); }}
-          className={`w-11 h-11 rounded-2xl flex items-center justify-center border transition-all duration-300 relative group cursor-pointer shadow-md hover:scale-[1.02] active:scale-95 ${
+          className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 relative group cursor-pointer hover:scale-[1.02] active:scale-95 ${
             isDashboardOpen 
               ? 'bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.25)]' 
-              : 'bg-white/[0.03] border-white/[0.08] hover:border-white/20 text-slate-300 hover:text-white'
+              : 'glass-gloss text-slate-300 hover:text-white'
           }`}
           title="Studio Dashboard"
         >
@@ -279,7 +279,7 @@ export default function HeaderBar({
         {/* Help */}
         <button
           onClick={openGuide}
-          className="w-11 h-11 rounded-2xl flex items-center justify-center border border-white/[0.08] hover:border-white/20 bg-white/[0.03] text-slate-300 hover:text-white transition-all cursor-pointer shadow-md hover:scale-[1.02] active:scale-95"
+          className="w-11 h-11 rounded-2xl flex items-center justify-center glass-gloss text-slate-300 hover:text-white transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
           title="Studio Guide"
         >
           <HelpCircle className="w-5 h-5" />
@@ -288,7 +288,7 @@ export default function HeaderBar({
         {/* User Manual */}
         <button
           onClick={openManual}
-          className="w-11 h-11 rounded-2xl flex items-center justify-center border border-white/[0.08] hover:border-white/20 bg-white/[0.03] text-slate-300 hover:text-white transition-all cursor-pointer shadow-md hover:scale-[1.02] active:scale-95"
+          className="w-11 h-11 rounded-2xl flex items-center justify-center glass-gloss text-slate-300 hover:text-white transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
           title="User Manual"
         >
           <BookOpen className="w-5 h-5" />

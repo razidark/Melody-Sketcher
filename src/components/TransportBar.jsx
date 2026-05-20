@@ -132,7 +132,7 @@ export default function TransportBar({
         {/* LEFT: View + Mixer + Rhythm */}
         <div className="flex items-center gap-4 justify-self-start">
         {/* View Toggle */}
-        <div className="flex items-center bg-white/[0.03] rounded-2xl p-1.5 border border-white/[0.06] shadow-md">
+        <div className="flex items-center glass-gloss rounded-2xl p-1.5 shadow-md">
           {['studio', 'stage'].map(mode => (
             <button 
               key={mode}
@@ -149,10 +149,10 @@ export default function TransportBar({
 
         <button 
           onClick={() => setIsMixerOpen(!isMixerOpen)}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl border transition-all text-[11px] font-black uppercase tracking-[0.15em] cursor-pointer shadow-md hover:scale-[1.02] active:scale-95
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl transition-all text-[11px] font-black uppercase tracking-[0.15em] cursor-pointer hover:scale-[1.02] active:scale-95
             ${isMixerOpen 
-              ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]' 
-              : 'bg-white/[0.03] border-white/[0.08] text-slate-300 hover:text-white hover:border-white/20'}`}
+              ? 'bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]' 
+              : 'glass-gloss text-slate-300 hover:text-white'}`}
         >
           <Sliders className="w-4 h-4" />
           <span className="hidden sm:inline">MIXER</span>
@@ -164,10 +164,10 @@ export default function TransportBar({
             const idx = RHYTHM_MODES.indexOf(rhythmMode);
             setRhythmMode(RHYTHM_MODES[(idx + 1) % RHYTHM_MODES.length]);
           }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl border transition-all text-[11px] font-black uppercase tracking-[0.15em] cursor-pointer shadow-md hover:scale-[1.02] active:scale-95
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl transition-all text-[11px] font-black uppercase tracking-[0.15em] cursor-pointer hover:scale-[1.02] active:scale-95
             ${rhythmMode !== 'off' 
-              ? 'bg-indigo-500/15 border-indigo-400/40 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]' 
-              : 'bg-white/[0.03] border-white/[0.08] text-slate-300 hover:text-white hover:border-white/20'}`}
+              ? 'bg-indigo-500/15 border border-indigo-400/40 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]' 
+              : 'glass-gloss text-slate-300 hover:text-white'}`}
         >
           <Disc3 className={`w-4 h-4 ${rhythmMode !== 'off' ? 'animate-spin' : ''}`} style={rhythmMode !== 'off' ? { animationDuration: '3s' } : {}} />
           {RHYTHM_LABELS[rhythmMode]}
@@ -179,10 +179,10 @@ export default function TransportBar({
         {/* Metronome */}
         <button
           onClick={() => setMetronome(!metronome)}
-          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all border cursor-pointer hover:scale-[1.02] active:scale-95
+          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all cursor-pointer hover:scale-[1.02] active:scale-95
             ${metronome
-              ? 'bg-amber-500/15 border-amber-400/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
-              : 'bg-white/[0.02] border-white/[0.05] text-slate-400 hover:text-slate-200 hover:border-white/[0.1]'}`}
+              ? 'bg-amber-500/15 border border-amber-400/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
+              : 'glass-gloss text-slate-400 hover:text-slate-200'}`}
           title="Metronome"
         >
           <Timer className="w-5 h-5" />
@@ -254,7 +254,7 @@ export default function TransportBar({
       {/* RIGHT: Volume, BPM, Clear */}
       <div className="flex items-center gap-5 justify-self-end">
         {/* Master Volume */}
-        <div className="flex items-center gap-3 bg-white/[0.03] rounded-2xl pl-4 pr-3 py-2 border border-white/[0.08] hover:border-white/20 transition-all shadow-md relative">
+        <div className="flex items-center gap-3 glass-gloss rounded-2xl pl-4 pr-3 py-2 shadow-md relative">
           <Volume2 className="w-4 h-4 text-slate-400" />
           
           {/* Custom Slider Layout */}
@@ -302,7 +302,7 @@ export default function TransportBar({
         <div className="w-px h-10 bg-white/[0.08]" />
 
         {/* BPM */}
-        <div className="flex items-center gap-3 bg-white/[0.03] rounded-2xl pl-4 pr-3 py-2 border border-white/[0.08] hover:border-white/20 transition-all shadow-md">
+        <div className="flex items-center gap-3 glass-gloss rounded-2xl pl-4 pr-3 py-2 shadow-md">
           <div className="flex flex-col items-end">
             <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-0.5 select-none">BPM</span>
             <input 
@@ -366,7 +366,7 @@ export default function TransportBar({
         {/* Clear */}
         <button 
           onClick={clearSketch}
-          className="flex items-center gap-2 text-slate-400 hover:text-rose-400 transition-all text-[11px] font-black uppercase tracking-widest group cursor-pointer px-4 py-2.5 rounded-2xl hover:bg-rose-500/10 hover:scale-[1.02] active:scale-95"
+          className="flex items-center gap-2 text-slate-400 hover:text-rose-400 transition-all text-[11px] font-black uppercase tracking-widest group cursor-pointer px-4 py-2.5 rounded-2xl glass-gloss hover:scale-[1.02] active:scale-95"
         >
           <Trash2 className="w-4 h-4 group-hover:rotate-12 transition-transform duration-200" />
           <span className="hidden sm:inline">CLEAR</span>

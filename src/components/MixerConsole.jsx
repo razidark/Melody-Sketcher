@@ -25,7 +25,7 @@ export default function MixerConsole({
       initial={{ height: 0, opacity: 0 }}
       animate={{ height: 260, opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
-      className="bg-black/90 backdrop-blur-3xl flex flex-col z-35 relative shrink-0 overflow-hidden animate-glow border-t border-white/[0.06]"
+      className="glass-dark flex flex-col z-35 relative shrink-0 overflow-hidden animate-glow border-t border-white/[0.06]"
       style={{ '--glow-color': currentTheme.color }}
     >
       {/* Mixer Header */}
@@ -38,7 +38,7 @@ export default function MixerConsole({
         </div>
         <button 
           onClick={closeConsole}
-          className="text-[11px] font-black hover:text-white transition-all uppercase tracking-widest cursor-pointer border border-white/5 hover:border-white/20 px-3 py-1 rounded-lg bg-white/[0.02]"
+          className="text-[11px] font-black hover:text-white transition-all uppercase tracking-widest cursor-pointer px-4 py-1.5 rounded-lg glass-gloss"
         >
           HIDE_MIXER
         </button>
@@ -118,10 +118,10 @@ export default function MixerConsole({
                     e.stopPropagation();
                     setLayers(prev => prev.map(l => l.id === layer.id ? { ...l, solo: !l.solo } : l));
                   }}
-                  className={`w-8 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all border cursor-pointer active:scale-90
+                  className={`w-8 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all cursor-pointer active:scale-90
                     ${layer.solo 
-                      ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_12px_rgba(16,185,129,0.4)]' 
-                      : 'bg-black/50 border-white/10 text-slate-400 hover:text-slate-200'}`}
+                      ? 'bg-emerald-500 border border-emerald-400 text-black shadow-[0_0_12px_rgba(16,185,129,0.4)]' 
+                      : 'glass-gloss text-slate-400 hover:text-slate-200'}`}
                   title="Solo Track"
                 >
                   S
@@ -131,10 +131,10 @@ export default function MixerConsole({
                     e.stopPropagation();
                     setLayers(prev => prev.map(l => l.id === layer.id ? { ...l, mute: !l.mute } : l));
                   }}
-                  className={`w-8 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all border cursor-pointer active:scale-90
+                  className={`w-8 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all cursor-pointer active:scale-90
                     ${layer.mute 
-                      ? 'bg-amber-500 border-amber-400 text-black shadow-[0_0_12px_rgba(245,158,11,0.4)]' 
-                      : 'bg-black/50 border-white/10 text-slate-400 hover:text-slate-200'}`}
+                      ? 'bg-amber-500 border border-amber-400 text-black shadow-[0_0_12px_rgba(245,158,11,0.4)]' 
+                      : 'glass-gloss text-slate-400 hover:text-slate-200'}`}
                   title="Mute Track"
                 >
                   M
@@ -249,20 +249,20 @@ export default function MixerConsole({
               <div className="flex gap-2 mt-2 shrink-0">
                 <button
                   onClick={() => setRhythmSolo(!rhythmSolo)}
-                  className={`w-8 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all border cursor-pointer active:scale-90
+                  className={`w-8 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all cursor-pointer active:scale-90
                     ${rhythmSolo 
-                      ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_12px_rgba(16,185,129,0.4)]' 
-                      : 'bg-black/50 border-white/10 text-slate-400 hover:text-slate-200'}`}
+                      ? 'bg-emerald-500 border border-emerald-400 text-black shadow-[0_0_12px_rgba(16,185,129,0.4)]' 
+                      : 'glass-gloss text-slate-400 hover:text-slate-200'}`}
                   title="Solo Rhythm Section"
                 >
                   S
                 </button>
                 <button
                   onClick={() => setRhythmMute(!rhythmMute)}
-                  className={`w-8 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all border cursor-pointer active:scale-90
+                  className={`w-8 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all cursor-pointer active:scale-90
                     ${rhythmMute 
-                      ? 'bg-amber-500 border-amber-400 text-black shadow-[0_0_12px_rgba(245,158,11,0.4)]' 
-                      : 'bg-black/50 border-white/10 text-slate-400 hover:text-slate-200'}`}
+                      ? 'bg-amber-500 border border-amber-400 text-black shadow-[0_0_12px_rgba(245,158,11,0.4)]' 
+                      : 'glass-gloss text-slate-400 hover:text-slate-200'}`}
                   title="Mute Rhythm Section"
                 >
                   M
@@ -370,10 +370,10 @@ export default function MixerConsole({
                     Tone.Destination.mute = nextMute;
                     setLayers(prev => [...prev]); // trigger state update hook
                   }}
-                  className={`w-8 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all border cursor-pointer active:scale-90
+                  className={`w-8 h-6 rounded-md flex items-center justify-center text-[10px] font-black transition-all cursor-pointer active:scale-90
                     ${Tone.Destination.mute 
-                      ? 'bg-amber-500 border-amber-400 text-black shadow-[0_0_12px_rgba(245,158,11,0.4)]' 
-                      : 'bg-black/50 border-white/10 text-slate-400 hover:text-slate-200'}`}
+                      ? 'bg-amber-500 border border-amber-400 text-black shadow-[0_0_12px_rgba(245,158,11,0.4)]' 
+                      : 'glass-gloss text-slate-400 hover:text-slate-200'}`}
                   title="Mute Master Output"
                 >
                   M

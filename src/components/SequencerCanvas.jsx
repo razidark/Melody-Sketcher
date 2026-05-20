@@ -438,12 +438,29 @@ const SequencerCanvas = forwardRef(({
         ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
         ctx.fillRect(nx + 2.5, ny + 1.5, nw - 4, 1.5);
 
-        // Border stroke
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-        ctx.lineWidth = 1;
+        // Border stroke with Chromatic Aberration Refraction
+        ctx.save();
+        ctx.lineWidth = 1.2;
+        ctx.globalCompositeOperation = 'screen';
+        
+        // Left boundary refraction (red-pink)
+        ctx.strokeStyle = 'rgba(255, 46, 147, 0.55)';
+        ctx.beginPath();
+        ctx.roundRect(nx + 0.5, ny + 1, nw, nh, 5);
+        ctx.stroke();
+
+        // Right boundary refraction (cyan)
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.55)';
+        ctx.beginPath();
+        ctx.roundRect(nx + 1.5, ny + 1, nw, nh, 5);
+        ctx.stroke();
+        
+        // Solid center border
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
         ctx.beginPath();
         ctx.roundRect(nx + 1, ny + 1, nw, nh, 5);
         ctx.stroke();
+        ctx.restore();
       }
 
       // Sparkles animation (Studio)

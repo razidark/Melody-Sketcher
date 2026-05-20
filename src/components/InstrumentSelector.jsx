@@ -61,7 +61,7 @@ export default function InstrumentSelector({
         </div>
         <button 
           onClick={closeMenu} 
-          className="w-10 h-10 rounded-2xl hover:bg-white/10 flex items-center justify-center transition-all text-slate-400 hover:text-white cursor-pointer border border-white/5 hover:border-white/20 active:scale-90"
+          className="w-10 h-10 rounded-2xl glass-gloss flex items-center justify-center transition-all text-slate-400 hover:text-white cursor-pointer active:scale-90"
         >
           <X className="w-5 h-5" />
         </button>
@@ -75,8 +75,8 @@ export default function InstrumentSelector({
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all duration-200 cursor-pointer whitespace-nowrap border shadow-sm hover:scale-[1.02] active:scale-95
               ${activeTab === tab.id 
-                ? 'bg-white text-black border-white' 
-                : 'bg-white/[0.02] border-white/[0.04] text-slate-400 hover:text-white hover:border-white/15'
+                ? 'bg-white text-black' 
+                : 'glass-gloss text-slate-400 hover:text-white'
               }`}
           >
             {tab.name}
@@ -92,10 +92,10 @@ export default function InstrumentSelector({
             <button
               key={inst.id}
               onClick={() => { setCurrentInstrument(inst); closeMenu(); }}
-              className={`flex items-center p-4 rounded-2xl border transition-all duration-300 gap-4 group relative text-left cursor-pointer hover:scale-[1.02] active:scale-95 shadow-sm
+              className={`flex items-center p-4 rounded-2xl transition-all duration-300 gap-4 group relative text-left cursor-pointer hover:scale-[1.02] active:scale-95 shadow-sm
                 ${isSelected 
                   ? 'bg-white border-white shadow-[0_4px_24px_rgba(255,255,255,0.25)]' 
-                  : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/20'
+                  : 'glass-gloss'
                 }
               `}
             >
