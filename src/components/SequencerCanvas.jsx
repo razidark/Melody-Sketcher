@@ -20,7 +20,8 @@ const SequencerCanvas = forwardRef(({
   pianoKeysRef,
   totalTicks,
   BEAT_WIDTH,
-  ROW_HEIGHT
+  ROW_HEIGHT,
+  gamepadCursor
 }, ref) => {
   const canvasRef = useRef(null);
   const scrollContainerRef = useRef(null);
@@ -37,6 +38,36 @@ const SequencerCanvas = forwardRef(({
   useEffect(() => {
     playheadPositionRef.current = playheadPosition;
   }, [playheadPosition]);
+
+  // Auto-scroll scroll container when gamepad cursor moves out of view
+  useEffect(() => {
+    if (!gamepadCursor || !scrollContainerRef.current) return;
+
+    const container = scrollContainerRef.current;
+    const cx = gamepadCursor.tick * BEAT_WIDTH;
+    const cy = gamepadCursor.index * ROW_HEIGHT;
+    const cw = BEAT_WIDTH;
+    const ch = ROW_HEIGHT;
+
+    const scrollLeftVal = container.scrollLeft;
+    const scrollTopVal = container.scrollTop;
+    const visibleWidth = container.clientWidth;
+    const visibleHeight = container.clientHeight;
+
+    // Horizontal check
+    if (cx < scrollLeftVal + 40) {
+      container.scrollLeft = Math.max(0, cx - 40);
+    } else if (cx + cw > scrollLeftVal + visibleWidth - 40) {
+      container.scrollLeft = cx + cw - visibleWidth + 40;
+    }
+
+    // Vertical check
+    if (cy < scrollTopVal + 40) {
+      container.scrollTop = Math.max(0, cy - 40);
+    } else if (cy + ch > scrollTopVal + visibleHeight - 40) {
+      container.scrollTop = cy + ch - visibleHeight + 40;
+    }
+  }, [gamepadCursor, BEAT_WIDTH, ROW_HEIGHT]);
 
   // Expose particle generators to parent
   useImperativeHandle(ref, () => ({
@@ -478,6 +509,32 @@ const SequencerCanvas = forwardRef(({
         ctx.fill();
       }
       sparklesRef.current = activeSparkles;
+
+      // Gamepad Selector Cursor (Studio)
+      if (gamepadCursor) {
+        const cx = gamepadCursor.tick * BEAT_WIDTH - scrollLeft;
+        const cy = gamepadCursor.index * ROW_HEIGHT - scrollTop;
+        const cw = BEAT_WIDTH;
+        const ch = ROW_HEIGHT;
+        
+        if (cx + cw >= minX && cx <= maxX && cy + ch >= minY && cy <= maxY) {
+          ctx.save();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([4, 2]); // dashed neon cursor box
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = currentTheme.color;
+          
+          ctx.beginPath();
+          ctx.roundRect(cx + 1, cy + 1, cw - 2, ch - 2, 4);
+          ctx.stroke();
+          
+          // Semi-transparent overlay with theme accent color
+          ctx.fillStyle = `${currentTheme.color}25`;
+          ctx.fill();
+          ctx.restore();
+        }
+      }
     }
 
     // Piano keys & particles (Stage)

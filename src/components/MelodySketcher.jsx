@@ -30,6 +30,7 @@ import UserManual from './UserManual';
 import useAudioEngine from '../hooks/useAudioEngine';
 import useAudioExport from '../hooks/useAudioExport';
 import useMidiKeyboard from '../hooks/useMidiKeyboard';
+import useGamepadController from '../hooks/useGamepadController';
 
 export default function MelodySketcher() {
   // Safe synchronous load of saved workspace
@@ -155,6 +156,8 @@ export default function MelodySketcher() {
   const [playheadPosition, setPlayheadPosition] = useState(0);
   const playheadPositionRef = useRef(0);
   
+  const [gamepadCursor, setGamepadCursor] = useState({ tick: 0, index: 36 });
+  const [gamepadConnectedName, setGamepadConnectedName] = useState(null);
   const [isFxOpen, setIsFxOpen] = useState(false);
   const [isInstrumentMenuOpen, setIsInstrumentMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState('studio'); // 'studio' or 'stage'
@@ -896,6 +899,27 @@ export default function MelodySketcher() {
     canvasComponentRef
   });
 
+  // Gamepad/Joystick API controller integration
+  useGamepadController({
+    gamepadCursor,
+    setGamepadCursor,
+    activeLayerId,
+    setActiveLayerId,
+    layers,
+    setLayers,
+    isRecording,
+    setIsRecording,
+    isPlaying,
+    togglePlay,
+    seekSeconds,
+    handleUndo,
+    handleRedo,
+    addNoteAt,
+    eraseNoteAt,
+    totalTicks,
+    setGamepadConnectedName
+  });
+
   // Demo song loader
   const loadDemoSong = (song) => {
     if (isPlaying) {
@@ -1042,6 +1066,7 @@ export default function MelodySketcher() {
             totalTicks={totalTicks}
             BEAT_WIDTH={BEAT_WIDTH}
             ROW_HEIGHT={ROW_HEIGHT}
+            gamepadCursor={gamepadConnectedName ? gamepadCursor : null}
           />
           {/* Floating Mixer Console Console */}
           <AnimatePresence>
@@ -1240,6 +1265,26 @@ export default function MelodySketcher() {
           <UserManual 
             onClose={() => setIsManualOpen(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Gamepad Connected Alert Toast */}
+      <AnimatePresence>
+        {gamepadConnectedName && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-55 flex items-center gap-3 px-5 py-3 rounded-2xl glass-gloss shadow-2xl border border-emerald-500/20"
+          >
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Gamepad Active</span>
+              <span className="text-[12px] font-black text-white mt-1 leading-none">
+                {gamepadConnectedName.split('(')[0].trim() || 'Controller'}
+              </span>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

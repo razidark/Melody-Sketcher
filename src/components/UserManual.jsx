@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { X, BookOpen, Music, Sliders, Keyboard, Settings, Table } from 'lucide-react';
+import { X, BookOpen, Music, Sliders, Keyboard, Settings, Table, Gamepad2 } from 'lucide-react';
 
 const MANUAL_SECTIONS = [
   {
@@ -53,6 +53,23 @@ const MANUAL_SECTIONS = [
 • Digit 1 to 9: Select active Track Layer 1 through 9
 • Arrow Left / Right: Scrub timeline playhead backward or forward
 • Arrow Up / Down: Adjust master tempo (BPM) up or down by 5 BPM`
+  },
+  {
+    id: 'gamepad',
+    title: 'Gamepad & Joystick Integration',
+    icon: Gamepad2,
+    content: `Plug in any USB/Bluetooth game controller (Xbox, PlayStation, Nintendo, or PC gamepad):
+• Left Joystick / D-Pad: Move the glowing sequencer cursor grid highlights
+• Right Joystick (Up/Down): Dynamically tweak Volume of the active track layer
+• Right Joystick (Left/Right): Dynamically tweak Pan placement of the active track layer
+• Button A / Cross: Place a note at the current cursor cell position
+• Button B / Circle: Erase the note at the current cursor cell position
+• Button X / Square: Start or stop project playback (Play/Stop)
+• Button Y / Triangle: Start or stop project recording (Record)
+• Bumper Left (LB/L1): Switch to previous track layer
+• Bumper Right (RB/R1): Switch to next track layer
+• Trigger Left (LT/L2) / Trigger Right (RT/R2): Rewind or forward timeline by 10s
+• Button Select / Start: Undo or Redo note composition steps`
   }
 ];
 
