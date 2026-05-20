@@ -1,0 +1,182 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  --bg-color: #07070a;
+  --surface-color: #111115;
+  --accent-primary: #7c3aed;
+  --accent-secondary: #3b82f6;
+  --text-main: #f1f5f9;
+  --text-dim: #64748b;
+  --border-color: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(255, 255, 255, 0.03);
+  --key-white: #ffffff;
+  --key-black: #1e1e22;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html, body, #root, .app-container {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: relative;
+}
+
+/* Subtle dot-grid overlay */
+body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ─── Glass Panels ────────────────────────────────── */
+.glass {
+  background: rgba(10, 10, 15, 0.55);
+  -webkit-backdrop-filter: blur(40px) saturate(220%);
+  backdrop-filter: blur(40px) saturate(220%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 24px 60px rgba(0, 0, 0, 0.75), 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+    inset 1px 0 0 0 rgba(255, 46, 147, 0.15), /* Prism red-pink left */
+    inset -1px 0 0 0 rgba(0, 240, 255, 0.15); /* Prism cyan right */
+}
+
+.glass-dark {
+  background: rgba(4, 4, 6, 0.65);
+  -webkit-backdrop-filter: blur(50px) saturate(240%);
+  backdrop-filter: blur(50px) saturate(240%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 
+    0 32px 80px rgba(0, 0, 0, 0.85), 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+    inset 1px 0 0 0 rgba(255, 46, 147, 0.1),  /* Prism red-pink left */
+    inset -1px 0 0 0 rgba(0, 240, 255, 0.1);  /* Prism cyan right */
+}
+
+/* ─── Text Effects ────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #a78bfa, #60a5fa, #f472b6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% auto;
+  animation: shine 4s linear infinite;
+}
+
+@keyframes shine {
+  to { background-position: 200% center; }
+}
+
+/* ─── Scrollbar: Hidden ───────────────────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar {
+  -ms-overflow-style: none;
+}
+
+/* ─── Scrollbar: Studio ───────────────────────────── */
+.scrollbar-studio::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-studio::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+}
+.scrollbar-studio::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #ff2e93 0%, #a78bfa 25%, #3b82f6 50%, #00f0ff 75%, #ff2e93 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.scrollbar-studio::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #ff55a9 0%, #bca5ff 25%, #60a5fa 50%, #3bf2ff 75%, #ff55a9 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+
+/* ─── Animations ──────────────────────────────────── */
+@keyframes glow {
+  0%   { box-shadow: 0 0 8px  color-mix(in srgb, var(--glow-color, #7c3aed) 15%, transparent); }
+  50%  { box-shadow: 0 0 24px color-mix(in srgb, var(--glow-color, #7c3aed) 40%, transparent); }
+  100% { box-shadow: 0 0 8px  color-mix(in srgb, var(--glow-color, #7c3aed) 15%, transparent); }
+}
+.glow-on-hover:hover { animation: glow 2s infinite; }
+.animate-glow { animation: glow 3s ease-in-out infinite; }
+
+@keyframes peakDecay {
+  0%   { height: 100%; opacity: 1; filter: brightness(1.3); }
+  100% { height: 5%;  opacity: 0.15; filter: brightness(1); }
+}
+.peak-active {
+  animation: peakDecay 0.7s cubic-bezier(0.08, 0.82, 0.17, 1) forwards;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.animate-float { animation: float 3s ease-in-out infinite; }
+
+/* ─── Range Inputs (Fader Caps) ───────────────────── */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  width: 100%;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 32px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+/* Hide number input spinners */
+.no-spinners::-webkit-outer-spin-button,
+.no-spinners::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+.no-spinners {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
