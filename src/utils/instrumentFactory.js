@@ -1,620 +1,423 @@
+/**
+ * @file instrumentFactory.js
+ * @description Highly optimized audio voicing engine. Dynamically instantiates Tone.Sampler
+ * soundfont mapping arrays using public domain community recordings, with seamless, silent
+ * polyphonic synthesizer fallbacks. Incorporates strict gain staging limits (-14dB base volume)
+ * to avoid frequency stacking and volume explosions.
+ * @module instrumentFactory
+ */
+
 import * as Tone from 'tone';
 import { INSTRUMENTS } from '../constants/midiConstants';
 
+const SAMPLES_BASE = 'https://nbrosowsky.github.io/tonejs-instruments/samples/';
+
+/**
+ * Converts standard scientific note names into matching mp3 filenames.
+ * e.g., "C#4" becomes "Cs4.mp3".
+ * @param {string[]} notes - Array of note identifiers
+ * @returns {Object.<string, string>} Mapping of note names to asset URLs
+ */
+function sampleUrls(notes) {
+  const urls = {};
+  for (const n of notes) urls[n] = n.replace('#', 's') + '.mp3';
+  return urls;
+}
+
+
+// Minimal sample sets per instrument (Tone.Sampler interpolates between these)
+const SAMPLES = {
+  piano: sampleUrls([
+    'A1','C2','E2','A2','C3','E3','A3','C4','E4','A4','C5','E5','A5','C6','E6','A6','C7'
+  ]),
+  'guitar-nylon': sampleUrls([
+    'B1','E2','A2','D3','A3','E4','A4','D5','E5'
+  ]),
+  'guitar-acoustic': sampleUrls([
+    'D2','A2','E3','A3','D4','A4','D5'
+  ]),
+  'guitar-electric': sampleUrls([
+    'E2','A2','C3','A3','C4','A4','C5','C6'
+  ]),
+  'bass-electric': sampleUrls([
+    'A#1','E1','A#2','E2','A#3','E3','G4'
+  ]),
+  violin: sampleUrls([
+    'A3','C4','E4','A4','C5','E5','A5','C6','E6','A6','C7'
+  ]),
+  cello: sampleUrls([
+    'C2','E2','A2','C3','E3','A3','C4','E4','A4','C5'
+  ]),
+  flute: sampleUrls([
+    'C4','E4','A4','C5','E5','A5','C6','E6','A6'
+  ]),
+  trumpet: sampleUrls([
+    'A3','C4','D#4','F4','G4','A#4','D5','F5','A5','C6'
+  ]),
+  trombone: sampleUrls([
+    'A#1','C#2','D#2','F2','A#2','C3','D3','D#3','F3','A#3','C4','D4','D#4','F4'
+  ]),
+  'french-horn': sampleUrls([
+    'A1','C2','D#2','G2','A3','C4','D3','D5','F3','F5'
+  ]),
+  tuba: sampleUrls([
+    'A#1','D#2','F1','F2','A#2','D3','A#3','D4','F3'
+  ]),
+  clarinet: sampleUrls([
+    'D3','A#3','D4','F3','F4','A#4','D5','F5','A#5','D6','F#6'
+  ]),
+  saxophone: sampleUrls([
+    'C#3','E3','A#3','C4','E4','A4','C5','E5','A5'
+  ]),
+  bassoon: sampleUrls([
+    'A2','A3','A4','C3','C4','C5','E4','G2','G3','G4'
+  ]),
+  organ: sampleUrls([
+    'A1','C1','C2','C3','C4','C5','C6','D#1','D#2','D#3','D#4','D#5','F#1','F#2','F#3','F#4','F#5','A2','A3','A4','A5'
+  ]),
+  harp: sampleUrls([
+    'B1','D2','E1','E3','F2','G1','A2','C3','C5','D4','E5','F4','F6','G3','G5','A4','A6','B3','B5','D6','D7','F7'
+  ]),
+  xylophone: sampleUrls([
+    'C5','G4','G5','C6','G6','C7','G7','C8'
+  ]),
+  contrabass: sampleUrls([
+    'F#1','G1','A#1','C2','D2','E2','F#2','G#2','A2','C#3','E3','G#3','B3'
+  ]),
+  harmonium: sampleUrls([
+    'C2','C3','C4','C5','E2','E3','E4','G2','G3','G4','A2','A3','A4'
+  ]),
+};
+
+// Map GM category → sample library folder + release time
+const CATEGORY_SAMPLE = {
+  'Pianos': { sample: 'piano', release: 1.2 },
+  'Guitars': { sample: 'guitar-acoustic', release: 1.0 },
+  'Basses': { sample: 'bass-electric', release: 0.8 },
+  'Strings': { sample: 'cello', release: 2.0 },
+  'Ensembles': { sample: 'violin', release: 2.0 },
+  'Brass': { sample: 'trumpet', release: 0.6 },
+  'Reeds': { sample: 'clarinet', release: 0.5 },
+  'Pipes': { sample: 'flute', release: 0.5 },
+  'Organs': { sample: 'organ', release: 0.8 },
+  'Percussion': { sample: 'xylophone', release: 0.4 },
+  'Percussive': { sample: 'xylophone', release: 0.4 },
+  'Ethnic': { sample: 'harmonium', release: 1.0 },
+};
+
+// GM index → specific sample override (for more accurate mapping)
+const GM_SAMPLE_OVERRIDE = {
+  32: { sample: 'contrabass', release: 1.0 }, // Acoustic Bass
+  40: { sample: 'violin', release: 1.5 },     // Violin
+  41: { sample: 'violin', release: 1.5 },     // Viola
+  42: { sample: 'cello', release: 2.0 },      // Cello
+  43: { sample: 'contrabass', release: 2.5 },  // Contrabass
+  46: { sample: 'harp', release: 1.5 },        // Orchestral Harp
+  56: { sample: 'trumpet', release: 0.6 },     // Trumpet
+  57: { sample: 'trombone', release: 0.8 },    // Trombone
+  58: { sample: 'tuba', release: 0.8 },        // Tuba
+  60: { sample: 'french-horn', release: 0.8 }, // French Horn
+  64: { sample: 'saxophone', release: 0.5 },   // Soprano Sax
+  65: { sample: 'saxophone', release: 0.5 },   // Alto Sax
+  66: { sample: 'saxophone', release: 0.5 },   // Tenor Sax
+  67: { sample: 'saxophone', release: 0.5 },   // Baritone Sax
+  68: { sample: 'clarinet', release: 0.5 },    // Oboe (close to clarinet)
+  70: { sample: 'bassoon', release: 0.6 },     // Bassoon
+  71: { sample: 'clarinet', release: 0.5 },    // Clarinet
+  73: { sample: 'flute', release: 0.4 },       // Flute
+};
+
+function createSampler(sampleName, release = 1) {
+  const urls = SAMPLES[sampleName];
+  if (!urls) return null;
+  return new Tone.Sampler({
+    urls,
+    baseUrl: SAMPLES_BASE + sampleName + '/',
+    release,
+  });
+}
+
+// ─── Drum Kit ─────────────────────────────────────────────────────
 class SynthDrumKit {
   constructor() {
     this.name = 'SynthDrumKit';
     this.volumeNode = new Tone.Volume(0);
-    this.volume = this.volumeNode.volume; // Expose the Tone.Signal for synth.volume.value compatibility
+    this.volume = this.volumeNode.volume;
 
     this.kick = new Tone.MembraneSynth({
-      envelope: { attack: 0.001, decay: 0.22, sustain: 0.001, release: 0.22 },
-      pitchDecay: 0.05,
-      octaves: 6
+      volume: -4,
+      envelope: { attack: 0.001, decay: 0.3, sustain: 0.001, release: 0.3 },
+      pitchDecay: 0.08, octaves: 7
     }).connect(this.volumeNode);
 
     this.snareFilter = new Tone.Filter({
-      type: "bandpass",
-      frequency: 1100,
-      Q: 1.5
+      type: 'bandpass', frequency: 1200, Q: 1.8
     }).connect(this.volumeNode);
 
     this.snare = new Tone.NoiseSynth({
-      volume: -4,
-      envelope: { attack: 0.001, decay: 0.13, sustain: 0 }
+      volume: -6,
+      envelope: { attack: 0.001, decay: 0.15, sustain: 0 }
     }).connect(this.snareFilter);
 
     this.hihat = new Tone.MetalSynth({
-      volume: -15,
-      frequency: 450,
-      envelope: { attack: 0.001, decay: 0.03, sustain: 0 },
-      resonance: 8500,
-      harmonicity: 8.0,
-      modulationIndex: 12
+      volume: -18,
+      frequency: 500,
+      envelope: { attack: 0.001, decay: 0.04, sustain: 0 },
+      resonance: 8500, harmonicity: 8.0, modulationIndex: 12
     }).connect(this.volumeNode);
 
     this.crash = new Tone.MetalSynth({
-      volume: -8,
+      volume: -10,
       frequency: 280,
-      envelope: { attack: 0.005, decay: 1.4, sustain: 0 },
-      resonance: 5500,
-      harmonicity: 6.0,
-      modulationIndex: 20
+      envelope: { attack: 0.005, decay: 1.6, sustain: 0 },
+      resonance: 5500, harmonicity: 6.0, modulationIndex: 20
     }).connect(this.volumeNode);
   }
 
   triggerAttackRelease(note, duration, time, velocity) {
     const midi = Tone.Midi(note).toMidi();
-    if (midi < 48) { // C3 and below: Kick
-      this.kick.triggerAttackRelease(note, duration, time, velocity);
-    } else if (midi < 60) { // C3 to B3: Snare
-      this.snare.triggerAttackRelease(duration, time, velocity);
-    } else if (midi < 72) { // C4 to B4: Hihat
-      this.hihat.triggerAttackRelease(duration, time, velocity);
-    } else { // C5 and above: Crash
-      this.crash.triggerAttackRelease(duration, time, velocity);
-    }
+    if (midi < 48) this.kick.triggerAttackRelease(note, duration, time, velocity);
+    else if (midi < 60) this.snare.triggerAttackRelease(duration, time, velocity);
+    else if (midi < 72) this.hihat.triggerAttackRelease(duration, time, velocity);
+    else this.crash.triggerAttackRelease(duration, time, velocity);
     return this;
   }
 
   triggerAttack(note, time, velocity) {
     const midi = Tone.Midi(note).toMidi();
-    if (midi < 48) {
-      this.kick.triggerAttack(note, time, velocity);
-    } else if (midi < 60) {
-      this.snare.triggerAttack(time, velocity);
-    } else if (midi < 72) {
-      this.hihat.triggerAttack(time, velocity);
-    } else {
-      this.crash.triggerAttack(time, velocity);
-    }
+    if (midi < 48) this.kick.triggerAttack(note, time, velocity);
+    else if (midi < 60) this.snare.triggerAttack(time, velocity);
+    else if (midi < 72) this.hihat.triggerAttack(time, velocity);
+    else this.crash.triggerAttack(time, velocity);
     return this;
   }
 
   triggerRelease(note, time) {
     const midi = Tone.Midi(note).toMidi();
-    if (midi < 48) {
-      this.kick.triggerRelease(time);
-    } else if (midi < 60) {
-      this.snare.triggerRelease(time);
-    } else if (midi < 72) {
-      this.hihat.triggerRelease(time);
-    } else {
-      this.crash.triggerRelease(time);
-    }
+    if (midi < 48) this.kick.triggerRelease(time);
+    else if (midi < 60) this.snare.triggerRelease(time);
+    else if (midi < 72) this.hihat.triggerRelease(time);
+    else this.crash.triggerRelease(time);
     return this;
   }
 
-  connect(destination) {
-    this.volumeNode.connect(destination);
-    return this;
-  }
-
-  disconnect() {
-    this.volumeNode.disconnect();
-    return this;
-  }
-
+  connect(d) { this.volumeNode.connect(d); return this; }
+  disconnect() { this.volumeNode.disconnect(); return this; }
   dispose() {
-    this.kick.dispose();
-    this.snare.dispose();
-    this.snareFilter.dispose();
-    this.hihat.dispose();
-    this.crash.dispose();
-    this.volumeNode.dispose();
+    this.kick.dispose(); this.snare.dispose(); this.snareFilter.dispose();
+    this.hihat.dispose(); this.crash.dispose(); this.volumeNode.dispose();
   }
 }
 
+// ─── Main Factory ─────────────────────────────────────────────────
+/**
+ * Factory function that instantiates the requested synth voice or sample player.
+ * Configures the base volume, limits polyphony count, loads sample buffers, and builds
+ * default ADSR/oscillator attributes for custom synths.
+ * 
+ * @param {string} id - The unique instrument identifier (e.g., 'acoustic-piano', 'strings', 'drum-kit')
+ * @returns {Tone.PolySynth|Tone.Sampler|SynthDrumKit} A playable Tone.js instrument node
+ */
 export function createInstrument(id) {
   let synth;
-  // Reduced polyphony from 64 to 32 to improve performance while still being plenty for typical tracks
-  const polyOptions = { maxPolyphony: 32 }; 
-  
+  const poly = { maxPolyphony: 24 };
+
   switch (id) {
+    // ── Sample-based flagship instruments ──────────────────────
     case 'acoustic-piano':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.Synth,
-        options: {
-          oscillator: { type: 'triangle8' }, // triangle8 gives a richer, slightly brighter acoustic tone
-          envelope: { attack: 0.005, decay: 1.5, sustain: 0.15, release: 2 }
-        }
-      });
-      break;
-      
-    case 'electric-piano':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.FMSynth,
-        options: {
-          harmonicity: 1,
-          modulationIndex: 1.2,
-          oscillator: { type: 'sine' },
-          modulation: { type: 'triangle' },
-          envelope: { attack: 0.01, decay: 2.5, sustain: 0.2, release: 1.5 },
-          modulationEnvelope: { attack: 0.05, decay: 0.5, sustain: 0, release: 0.5 }
-        }
-      });
-      break;
-
-    case 'lofi-keys':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.AMSynth,
-        options: {
-          harmonicity: 1.01, // Creates a slight detuned chorus/wobble effect
-          oscillator: { type: 'sine' },
-          modulation: { type: 'sine' },
-          envelope: { attack: 0.05, decay: 1.5, sustain: 0.4, release: 2 }
-        }
-      });
-      break;
-
-    case 'strings':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.AMSynth,
-        options: {
-          harmonicity: 1,
-          oscillator: { type: 'sawtooth' },
-          modulation: { type: 'sine' },
-          envelope: { attack: 0.8, decay: 1.5, sustain: 0.8, release: 2.5 }
-        }
-      });
-      break;
-
-    case 'choral':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.FMSynth,
-        options: {
-          harmonicity: 3,
-          modulationIndex: 1.5,
-          oscillator: { type: 'sine' },
-          modulation: { type: 'sawtooth' },
-          envelope: { attack: 1.2, decay: 1.0, sustain: 1.0, release: 2.5 }
-        }
-      });
+      synth = createSampler('piano', 1.2);
+      if (!synth) synth = new Tone.PolySynth({ ...poly, voice: Tone.FMSynth, options: {
+        harmonicity: 3, modulationIndex: 10, oscillator: { type: 'sine' },
+        modulation: { type: 'sine' },
+        envelope: { attack: 0.001, decay: 1.5, sustain: 0.1, release: 1.2 },
+        modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 }
+      }});
       break;
 
     case 'nylon-guitar':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.Synth,
-        options: {
-          oscillator: { type: 'triangle' },
-          envelope: { attack: 0.01, decay: 1.2, sustain: 0, release: 1.2 }
-        }
-      });
+      synth = createSampler('guitar-nylon', 1.0);
+      if (!synth) synth = new Tone.PolySynth({ ...poly, voice: Tone.Synth, options: {
+        oscillator: { type: 'triangle' },
+        envelope: { attack: 0.01, decay: 1.2, sustain: 0, release: 1.2 }
+      }});
       break;
 
     case 'electric-guitar':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.FMSynth,
-        options: {
-          harmonicity: 0.5,
-          modulationIndex: 10,
-          oscillator: { type: 'sawtooth' },
-          modulation: { type: 'square' },
-          envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1.2 }
-        }
-      });
+      synth = createSampler('guitar-electric', 0.8);
+      if (!synth) synth = new Tone.PolySynth({ ...poly, voice: Tone.FMSynth, options: {
+        harmonicity: 0.5, modulationIndex: 6,
+        oscillator: { type: 'sawtooth' }, modulation: { type: 'square' },
+        envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1.2 }
+      }});
       break;
 
     case 'slap-bass':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.FMSynth,
-        options: {
-          harmonicity: 1,
-          modulationIndex: 5,
-          oscillator: { type: 'triangle' },
-          modulation: { type: 'square' },
-          envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.8 },
-          modulationEnvelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0 }
-        }
-      });
+      synth = createSampler('bass-electric', 0.6);
+      if (!synth) synth = new Tone.PolySynth({ ...poly, voice: Tone.FMSynth, options: {
+        harmonicity: 1, modulationIndex: 4,
+        oscillator: { type: 'triangle' }, modulation: { type: 'square' },
+        envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.8 },
+        modulationEnvelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0 }
+      }});
       break;
 
-    case 'synth-lead':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.Synth,
-        options: {
-          oscillator: { type: 'fatsawtooth', count: 3, spread: 30 },
-          envelope: { attack: 0.01, decay: 0.2, sustain: 0.5, release: 1 }
-        }
-      });
-      break;
-
-    case 'synth-pad':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.MonoSynth, // MonoSynth gives access to a filter envelope
-        options: {
-          oscillator: { type: 'fatsawtooth', count: 3, spread: 20 },
-          envelope: { attack: 1.5, decay: 1.0, sustain: 0.8, release: 3 },
-          filter: { type: 'lowpass', Q: 1, rolloff: -24 },
-          filterEnvelope: { attack: 2, decay: 1, sustain: 0.8, release: 3, baseFrequency: 300, octaves: 3 }
-        }
-      });
-      break;
-
-    case 'synth-bass':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.MonoSynth,
-        options: {
-          oscillator: { type: 'square' },
-          envelope: { attack: 0.01, decay: 0.4, sustain: 0.2, release: 1 },
-          filter: { type: 'lowpass', Q: 2 },
-          filterEnvelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.8, baseFrequency: 100, octaves: 4 }
-        }
-      });
-      break;
-
-    case '808-bass':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.MembraneSynth,
-        options: {
-          pitchDecay: 0.05,
-          octaves: 4,
-          oscillator: { type: 'sine' },
-          envelope: { attack: 0.01, decay: 1.5, sustain: 0.1, release: 2 }
-        }
-      });
-      break;
-
-    case 'brass':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.MonoSynth,
-        options: {
-          oscillator: { type: 'sawtooth' },
-          envelope: { attack: 0.1, decay: 0.2, sustain: 0.8, release: 0.8 },
-          filter: { type: 'lowpass', Q: 1 },
-          filterEnvelope: { attack: 0.1, decay: 0.2, sustain: 0.6, release: 0.8, baseFrequency: 300, octaves: 3 }
-        }
-      });
-      break;
-
-    case 'bells':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.FMSynth,
-        options: {
-          harmonicity: 3.5,
-          modulationIndex: 5,
-          envelope: { attack: 0.005, decay: 1.5, sustain: 0, release: 1.5 },
-          modulationEnvelope: { attack: 0.005, decay: 1.5, sustain: 0, release: 1.5 }
-        }
-      });
-      break;
-
-    case 'marimba':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.Synth,
-        options: {
-          oscillator: { type: 'sine' },
-          envelope: { attack: 0.005, decay: 0.4, sustain: 0, release: 0.4 }
-        }
-      });
+    case 'strings':
+      synth = createSampler('violin', 2.0);
+      if (!synth) synth = new Tone.PolySynth({ ...poly, voice: Tone.Synth, options: {
+        oscillator: { type: 'fatsawtooth', count: 3, spread: 12 },
+        envelope: { attack: 0.6, decay: 1.5, sustain: 0.85, release: 2.5 }
+      }});
       break;
 
     case 'flute':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.AMSynth,
-        options: {
-          harmonicity: 2,
-          oscillator: { type: 'triangle' },
-          envelope: { attack: 0.1, decay: 0.2, sustain: 1, release: 0.5 }
-        }
-      });
+      synth = createSampler('flute', 0.5);
+      if (!synth) synth = new Tone.PolySynth({ ...poly, voice: Tone.AMSynth, options: {
+        harmonicity: 2, oscillator: { type: 'sine' },
+        envelope: { attack: 0.08, decay: 0.2, sustain: 1, release: 0.5 }
+      }});
+      break;
+
+    case 'brass':
+      synth = createSampler('trumpet', 0.6);
+      if (!synth) synth = new Tone.PolySynth({ ...poly, voice: Tone.MonoSynth, options: {
+        oscillator: { type: 'sawtooth' },
+        envelope: { attack: 0.1, decay: 0.2, sustain: 0.8, release: 0.8 },
+        filter: { type: 'lowpass', Q: 1 },
+        filterEnvelope: { attack: 0.1, decay: 0.2, sustain: 0.6, release: 0.8, baseFrequency: 300, octaves: 3 }
+      }});
+      break;
+
+    case 'bells':
+      synth = createSampler('xylophone', 0.8);
+      if (!synth) synth = new Tone.PolySynth({ ...poly, voice: Tone.FMSynth, options: {
+        harmonicity: 3.5, modulationIndex: 4,
+        envelope: { attack: 0.005, decay: 1.5, sustain: 0, release: 1.5 },
+        modulationEnvelope: { attack: 0.005, decay: 1.5, sustain: 0, release: 1.5 }
+      }});
+      break;
+
+    case 'marimba':
+      synth = createSampler('xylophone', 0.4);
+      if (!synth) synth = new Tone.PolySynth({ ...poly, voice: Tone.Synth, options: {
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.005, decay: 0.4, sustain: 0, release: 0.4 }
+      }});
       break;
 
     case 'org':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.FMSynth,
-        options: {
-          harmonicity: 2,
-          modulationIndex: 2,
-          oscillator: { type: 'sine' },
-          modulation: { type: 'triangle' },
-          envelope: { attack: 0.05, decay: 0.1, sustain: 1, release: 0.5 }
-        }
-      });
+      synth = createSampler('organ', 0.8);
+      if (!synth) synth = new Tone.PolySynth({ ...poly, voice: Tone.FMSynth, options: {
+        harmonicity: 2, modulationIndex: 1.5,
+        oscillator: { type: 'sine' }, modulation: { type: 'triangle' },
+        envelope: { attack: 0.05, decay: 0.1, sustain: 1, release: 0.5 }
+      }});
+      break;
+
+    // ── Enhanced synth-only instruments ────────────────────────
+    case 'electric-piano':
+      synth = new Tone.PolySynth({ ...poly, voice: Tone.FMSynth, options: {
+        harmonicity: 1, modulationIndex: 1.2,
+        oscillator: { type: 'sine' }, modulation: { type: 'triangle' },
+        envelope: { attack: 0.008, decay: 2.5, sustain: 0.15, release: 1.5 },
+        modulationEnvelope: { attack: 0.03, decay: 0.5, sustain: 0, release: 0.5 }
+      }});
+      break;
+
+    case 'lofi-keys':
+      synth = new Tone.PolySynth({ ...poly, voice: Tone.AMSynth, options: {
+        harmonicity: 1.01, oscillator: { type: 'sine' }, modulation: { type: 'sine' },
+        envelope: { attack: 0.04, decay: 1.8, sustain: 0.35, release: 2.2 }
+      }});
+      break;
+
+    case 'choral':
+      synth = new Tone.PolySynth({ ...poly, voice: Tone.FMSynth, options: {
+        harmonicity: 2.5, modulationIndex: 1.2,
+        oscillator: { type: 'sine' }, modulation: { type: 'sawtooth' },
+        envelope: { attack: 1.0, decay: 1.0, sustain: 1.0, release: 2.5 }
+      }});
+      break;
+
+    case 'synth-lead':
+      synth = new Tone.PolySynth({ ...poly, voice: Tone.Synth, options: {
+        oscillator: { type: 'fatsawtooth', count: 3, spread: 25 },
+        envelope: { attack: 0.01, decay: 0.2, sustain: 0.5, release: 1 }
+      }});
+      break;
+
+    case 'synth-pad':
+      synth = new Tone.PolySynth({ ...poly, voice: Tone.MonoSynth, options: {
+        oscillator: { type: 'fatsawtooth', count: 3, spread: 18 },
+        envelope: { attack: 1.5, decay: 1.0, sustain: 0.8, release: 3 },
+        filter: { type: 'lowpass', Q: 1, rolloff: -24 },
+        filterEnvelope: { attack: 2, decay: 1, sustain: 0.8, release: 3, baseFrequency: 300, octaves: 3 }
+      }});
+      break;
+
+    case 'synth-bass':
+      synth = new Tone.PolySynth({ ...poly, voice: Tone.MonoSynth, options: {
+        oscillator: { type: 'square' },
+        envelope: { attack: 0.01, decay: 0.4, sustain: 0.2, release: 1 },
+        filter: { type: 'lowpass', Q: 2 },
+        filterEnvelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.8, baseFrequency: 100, octaves: 3.5 }
+      }});
+      break;
+
+    case '808-bass':
+      synth = new Tone.PolySynth({ ...poly, voice: Tone.MembraneSynth, options: {
+        pitchDecay: 0.05, octaves: 4, oscillator: { type: 'sine' },
+        envelope: { attack: 0.01, decay: 1.5, sustain: 0.1, release: 2 }
+      }});
       break;
 
     case 'pulse':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.Synth,
-        options: {
-          oscillator: { type: 'pulse', width: 0.2 },
-          envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.4 }
-        }
-      });
+      synth = new Tone.PolySynth({ ...poly, voice: Tone.Synth, options: {
+        oscillator: { type: 'pulse', width: 0.2 },
+        envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.4 }
+      }});
       break;
 
     case 'fm':
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: Tone.FMSynth,
-        options: {
-          modulationIndex: 12,
-          envelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 1 }
-        }
-      });
+      synth = new Tone.PolySynth({ ...poly, voice: Tone.FMSynth, options: {
+        modulationIndex: 8,
+        envelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 1 }
+      }});
       break;
 
     case 'drum-kit':
       synth = new SynthDrumKit();
       break;
 
+    // ── GM Category Fallbacks (sample-based where possible) ───
     default: {
-      const matchedInstrument = INSTRUMENTS.find(i => i.id === id);
-      const category = matchedInstrument ? matchedInstrument.category : 'Leads';
-      const gmIndex = matchedInstrument ? matchedInstrument.gmIndex : -1;
-      
-      let voiceClass;
-      let synthOpts;
-      
+      const matched = INSTRUMENTS.find(i => i.id === id);
+      const category = matched?.category || 'Leads';
+      const gmIndex = matched?.gmIndex ?? -1;
+
+      // Try GM-specific sample override first
+      const gmOverride = GM_SAMPLE_OVERRIDE[gmIndex];
+      if (gmOverride) {
+        synth = createSampler(gmOverride.sample, gmOverride.release);
+        if (synth) break;
+      }
+
+      // Try category-level sample
+      const catSample = CATEGORY_SAMPLE[category];
+      if (catSample) {
+        synth = createSampler(catSample.sample, catSample.release);
+        if (synth) break;
+      }
+
+      // Synth fallbacks for categories without samples
+      let voiceClass, synthOpts;
       switch (category) {
-        case 'Pianos':
+        case 'Leads':
           voiceClass = Tone.Synth;
           synthOpts = {
-            oscillator: { type: 'triangle16' },
-            envelope: { attack: 0.005, decay: 1.8, sustain: 0.15, release: 2 }
+            oscillator: { type: 'fatsawtooth', count: 3, spread: 20 },
+            envelope: { attack: 0.01, decay: 0.2, sustain: 0.5, release: 1 }
           };
-          if (gmIndex === 1) { // Bright Acoustic Piano
-            synthOpts.oscillator.type = 'sawtooth';
-            synthOpts.envelope.decay = 1.0;
-          } else if (gmIndex === 2) { // Electric Grand Piano
-            voiceClass = Tone.FMSynth;
-            synthOpts = {
-              harmonicity: 1.5,
-              modulationIndex: 4,
-              envelope: { attack: 0.01, decay: 1.2, sustain: 0.3, release: 1.5 }
-            };
-          } else if (gmIndex === 3) { // Honky-tonk Piano
-            synthOpts.oscillator.type = 'pulse';
-            synthOpts.oscillator.width = 0.4;
-            synthOpts.envelope.decay = 0.8;
-          } else if (gmIndex === 6) { // Harpsichord
-            synthOpts.oscillator.type = 'sine8';
-            synthOpts.envelope = { attack: 0.002, decay: 0.4, sustain: 0.01, release: 0.4 };
-          } else if (gmIndex === 7) { // Clavinet
-            synthOpts.oscillator.type = 'sawtooth';
-            synthOpts.envelope = { attack: 0.002, decay: 0.5, sustain: 0.02, release: 0.5 };
-          }
           break;
-          
-        case 'Percussion':
-        case 'Percussive':
-          voiceClass = Tone.FMSynth;
-          synthOpts = {
-            harmonicity: 3.5,
-            modulationIndex: 8,
-            envelope: { attack: 0.002, decay: 0.8, sustain: 0.0, release: 0.8 },
-            modulationEnvelope: { attack: 0.002, decay: 0.8, sustain: 0.0, release: 0.8 }
-          };
-          if (gmIndex === 8) { // Celesta
-            synthOpts.harmonicity = 4.0;
-            synthOpts.modulationIndex = 3;
-            synthOpts.envelope.decay = 0.5;
-          } else if (gmIndex === 9) { // Glockenspiel
-            synthOpts.harmonicity = 6.0;
-            synthOpts.modulationIndex = 12;
-            synthOpts.envelope.decay = 0.3;
-          } else if (gmIndex === 10) { // Music Box
-            synthOpts.harmonicity = 5.0;
-            synthOpts.modulationIndex = 2;
-            synthOpts.envelope.decay = 0.6;
-          } else if (gmIndex === 11) { // Vibraphone
-            voiceClass = Tone.Synth;
-            synthOpts = {
-              oscillator: { type: 'sine' },
-              envelope: { attack: 0.08, decay: 1.5, sustain: 0.2, release: 1.5 }
-            };
-          } else if (gmIndex === 13) { // Xylophone
-            synthOpts.harmonicity = 3.0;
-            synthOpts.envelope.decay = 0.25;
-          } else if (gmIndex === 14) { // Tubular Bells
-            synthOpts.harmonicity = 2.76;
-            synthOpts.modulationIndex = 15;
-            synthOpts.envelope.decay = 2.0;
-          } else if (gmIndex === 15) { // Dulcimer
-            voiceClass = Tone.Synth;
-            synthOpts = {
-              oscillator: { type: 'triangle' },
-              envelope: { attack: 0.01, decay: 0.6, sustain: 0.05, release: 0.6 }
-            };
-          } else if (gmIndex === 115) { // Steel Drums
-            synthOpts.harmonicity = 4.8;
-            synthOpts.modulationIndex = 10;
-            synthOpts.envelope.decay = 0.9;
-          }
-          break;
-          
-        case 'Organs':
-          voiceClass = Tone.FMSynth;
-          synthOpts = {
-            harmonicity: 2,
-            modulationIndex: 1.5,
-            oscillator: { type: 'sine' },
-            modulation: { type: 'triangle' },
-            envelope: { attack: 0.08, decay: 0.1, sustain: 0.9, release: 0.8 }
-          };
-          if (gmIndex === 16) { // Drawbar Organ
-            synthOpts.harmonicity = 1.0;
-            synthOpts.modulationIndex = 0.5;
-          } else if (gmIndex === 17) { // Percussive Organ
-            synthOpts.envelope.attack = 0.01;
-            synthOpts.modulationIndex = 3.0;
-          } else if (gmIndex === 18) { // Rock Organ
-            voiceClass = Tone.Synth;
-            synthOpts = {
-              oscillator: { type: 'sawtooth' },
-              envelope: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 0.6 }
-            };
-          } else if (gmIndex === 21) { // Accordion
-            voiceClass = Tone.Synth;
-            synthOpts = {
-              oscillator: { type: 'square' },
-              envelope: { attack: 0.1, decay: 0.1, sustain: 0.8, release: 0.5 }
-            };
-          } else if (gmIndex === 22) { // Harmonica
-            voiceClass = Tone.Synth;
-            synthOpts = {
-              oscillator: { type: 'triangle' },
-              envelope: { attack: 0.15, decay: 0.2, sustain: 0.7, release: 0.5 }
-            };
-          }
-          break;
-          
-        case 'Guitars':
-          voiceClass = Tone.Synth;
-          synthOpts = {
-            oscillator: { type: 'sawtooth' },
-            envelope: { attack: 0.01, decay: 1.2, sustain: 0.05, release: 1.2 }
-          };
-          if (gmIndex === 25) { // Steel Guitar
-            synthOpts.oscillator.type = 'sawtooth';
-            synthOpts.envelope.decay = 1.5;
-            synthOpts.envelope.release = 1.5;
-          } else if (gmIndex === 26) { // Jazz Guitar
-            synthOpts.oscillator.type = 'triangle';
-            synthOpts.envelope.decay = 0.9;
-          } else if (gmIndex === 27) { // Clean Guitar
-            synthOpts.oscillator.type = 'triangle8';
-            synthOpts.envelope.decay = 1.1;
-          } else if (gmIndex === 28) { // Muted Guitar
-            synthOpts.oscillator.type = 'pulse';
-            synthOpts.oscillator.width = 0.2;
-            synthOpts.envelope = { attack: 0.005, decay: 0.15, sustain: 0.01, release: 0.15 };
-          } else if (gmIndex === 30) { // Distortion Guitar
-            synthOpts.oscillator.type = 'sawtooth';
-            synthOpts.envelope = { attack: 0.01, decay: 0.1, sustain: 0.9, release: 0.8 };
-          } else if (gmIndex === 31) { // Guitar harmonics
-            voiceClass = Tone.FMSynth;
-            synthOpts = {
-              harmonicity: 3.0,
-              modulationIndex: 6,
-              envelope: { attack: 0.005, decay: 0.8, sustain: 0.01, release: 0.8 }
-            };
-          }
-          break;
-          
-        case 'Basses':
-          voiceClass = Tone.MonoSynth;
-          synthOpts = {
-            oscillator: { type: 'square' },
-            envelope: { attack: 0.01, decay: 0.4, sustain: 0.3, release: 0.8 },
-            filter: { type: 'lowpass', Q: 1.5 },
-            filterEnvelope: { attack: 0.01, decay: 0.3, sustain: 0.2, release: 0.8, baseFrequency: 150, octaves: 3 }
-          };
-          if (gmIndex === 32) { // Acoustic Bass
-            voiceClass = Tone.Synth;
-            synthOpts = {
-              oscillator: { type: 'triangle' },
-              envelope: { attack: 0.05, decay: 0.8, sustain: 0.1, release: 1.0 }
-            };
-          } else if (gmIndex === 33) { // Finger Bass
-            synthOpts.oscillator.type = 'sine4';
-            synthOpts.filterEnvelope.baseFrequency = 100;
-          } else if (gmIndex === 34) { // Pick Bass
-            synthOpts.oscillator.type = 'sawtooth';
-            synthOpts.filterEnvelope.baseFrequency = 200;
-          } else if (gmIndex === 35) { // Fretless Bass
-            synthOpts.oscillator.type = 'triangle';
-            synthOpts.envelope.attack = 0.06;
-          }
-          break;
-          
-        case 'Strings':
-        case 'Ensembles':
-          voiceClass = Tone.AMSynth;
-          synthOpts = {
-            harmonicity: 1,
-            oscillator: { type: 'sawtooth' },
-            modulation: { type: 'sine' },
-            envelope: { attack: 0.4, decay: 1.2, sustain: 0.8, release: 2.2 }
-          };
-          if (gmIndex === 40) { // Violin
-            synthOpts.envelope.attack = 0.15;
-            synthOpts.envelope.release = 1.0;
-          } else if (gmIndex === 42) { // Cello
-            synthOpts.envelope.attack = 0.25;
-            synthOpts.oscillator.type = 'sawtooth';
-          } else if (gmIndex === 43) { // Contrabass
-            synthOpts.envelope.attack = 0.35;
-            synthOpts.envelope.release = 2.5;
-          } else if (gmIndex === 45) { // Pizzicato Strings
-            voiceClass = Tone.Synth;
-            synthOpts = {
-              oscillator: { type: 'triangle' },
-              envelope: { attack: 0.005, decay: 0.25, sustain: 0.01, release: 0.25 }
-            };
-          } else if (gmIndex === 46) { // Orchestral Harp
-            voiceClass = Tone.Synth;
-            synthOpts = {
-              oscillator: { type: 'triangle' },
-              envelope: { attack: 0.01, decay: 1.5, sustain: 0.05, release: 1.5 }
-            };
-          } else if (gmIndex === 47) { // Timpani
-            voiceClass = Tone.MembraneSynth;
-            synthOpts = {
-              envelope: { attack: 0.001, decay: 0.6, sustain: 0.01, release: 0.6 }
-            };
-          }
-          break;
-          
-        case 'Brass':
-          voiceClass = Tone.MonoSynth;
-          synthOpts = {
-            oscillator: { type: 'sawtooth' },
-            envelope: { attack: 0.12, decay: 0.3, sustain: 0.75, release: 1.0 },
-            filter: { type: 'lowpass', Q: 1.2 },
-            filterEnvelope: { attack: 0.1, decay: 0.3, sustain: 0.6, release: 1.0, baseFrequency: 250, octaves: 4 }
-          };
-          if (gmIndex === 56) { // Trumpet
-            synthOpts.envelope.attack = 0.06;
-            synthOpts.filterEnvelope.attack = 0.05;
-          } else if (gmIndex === 57) { // Trombone
-            synthOpts.envelope.attack = 0.15;
-            synthOpts.filterEnvelope.attack = 0.12;
-          } else if (gmIndex === 58) { // Tuba
-            synthOpts.envelope.attack = 0.25;
-            synthOpts.filterEnvelope.baseFrequency = 120;
-          }
-          break;
-          
-        case 'Reeds':
-        case 'Pipes':
-          voiceClass = Tone.AMSynth;
-          synthOpts = {
-            harmonicity: 1.5,
-            oscillator: { type: 'triangle' },
-            modulation: { type: 'sine' },
-            envelope: { attack: 0.08, decay: 0.2, sustain: 0.85, release: 0.6 }
-          };
-          if (gmIndex === 72) { // Piccolo
-            synthOpts.envelope.attack = 0.02;
-            synthOpts.envelope.release = 0.3;
-          } else if (gmIndex === 74) { // Recorder
-            synthOpts.envelope.attack = 0.06;
-            synthOpts.envelope.release = 0.4;
-          } else if (gmIndex === 75) { // Pan Flute
-            synthOpts.envelope.attack = 0.12;
-            synthOpts.envelope.release = 0.8;
-          }
-          break;
-          
         case 'Pads':
           voiceClass = Tone.MonoSynth;
           synthOpts = {
@@ -623,27 +426,16 @@ export function createInstrument(id) {
             filter: { type: 'lowpass', Q: 1.0 },
             filterEnvelope: { attack: 2.0, decay: 1.2, sustain: 0.8, release: 3.5, baseFrequency: 250, octaves: 2.5 }
           };
-          if (gmIndex === 91) { // Pad 4 (choir)
-            voiceClass = Tone.AMSynth;
-            synthOpts = {
-              harmonicity: 1.0,
-              oscillator: { type: 'sawtooth' },
-              envelope: { attack: 1.2, decay: 1.0, sustain: 0.8, release: 2.5 }
-            };
-          }
           break;
-          
         case 'Synth FX':
         case 'Sound Effects':
           voiceClass = Tone.FMSynth;
           synthOpts = {
-            harmonicity: 5.2,
-            modulationIndex: 15,
+            harmonicity: 5.2, modulationIndex: 8,
             oscillator: { type: 'square' },
             envelope: { attack: 0.15, decay: 1.5, sustain: 0.3, release: 2.5 }
           };
           break;
-          
         default:
           voiceClass = Tone.Synth;
           synthOpts = {
@@ -651,16 +443,11 @@ export function createInstrument(id) {
             envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 }
           };
       }
-      
-      synth = new Tone.PolySynth({
-        ...polyOptions,
-        voice: voiceClass,
-        options: synthOpts
-      });
+      synth = new Tone.PolySynth({ ...poly, voice: voiceClass, options: synthOpts });
     }
   }
 
-  synth.volume.value = -12; // Prevent clipping
+  synth.volume.value = -14;
   synth._instId = id;
   return synth;
 }

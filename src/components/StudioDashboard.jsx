@@ -4,14 +4,13 @@ import {
   Sliders, 
   Wand2, 
   BookOpen, 
-  Palette, 
   X, 
   ChevronRight, 
   Sparkles,
   Music,
   Disc
 } from 'lucide-react';
-import { THEMES, ALL_NOTES } from '../constants/midiConstants';
+import { ALL_NOTES } from '../constants/midiConstants';
 
 const SCALES = {
   chromatic: { name: 'Chromatic (All)', notes: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] },
@@ -136,17 +135,11 @@ export default function StudioDashboard({
   activeLayer,
   setLayers,
   currentTheme,
-  setCurrentTheme,
-  customThemes,
-  setCustomThemes,
   closeDashboard
 }) {
   const [activeTab, setActiveTab] = useState('synth');
   
-  // Custom Theme state
-  const [customName, setCustomName] = useState('My Custom Theme');
-  const [primaryColor, setPrimaryColor] = useState('#a855f7');
-  const [secondaryColor, setSecondaryColor] = useState('#1e1b4b');
+
 
   // Synth controls handlers
   const handleSynthChange = (param, val) => {
@@ -297,26 +290,21 @@ export default function StudioDashboard({
     }));
   };
 
-  // Custom Theme Adder
-  const createCustomTheme = () => {
-    const id = customName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const newTheme = {
-      id,
-      name: customName,
-      color: primaryColor,
-      secondary: secondaryColor
-    };
-    setCustomThemes(prev => [...prev, newTheme]);
-    setCurrentTheme(newTheme);
-  };
+
 
   return (
     <motion.div
-      initial={{ x: 380, opacity: 0 }}
+      initial={{ x: 480, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 380, opacity: 0 }}
+      exit={{ x: 480, opacity: 0 }}
       transition={{ type: 'spring', damping: 24, stiffness: 180 }}
-      className="absolute right-5 top-5 bottom-5 w-[380px] bg-black/60 backdrop-blur-3xl border border-white/[0.08] rounded-[28px] flex flex-col z-[45] shadow-[0_24px_50px_rgba(0,0,0,0.8)] overflow-hidden"
+      className="absolute right-5 top-5 bottom-5 w-[480px] border rounded-[28px] flex flex-col z-[45] overflow-hidden"
+      style={{
+        background: 'rgba(5, 5, 8, 0.85)',
+        backdropFilter: 'blur(35px) saturate(240%)',
+        borderColor: 'rgba(255,255,255,0.08)',
+        boxShadow: `0 24px 64px rgba(0,0,0,0.95), inset 0 1px 0 0 rgba(255,255,255,0.15), inset -2px 0 8px rgba(0,240,255,0.15), inset 2px 0 8px rgba(46,255,147,0.15), 0 0 40px -10px ${currentTheme.color}20`
+      }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
@@ -337,8 +325,7 @@ export default function StudioDashboard({
         {[
           { id: 'synth', label: 'SYNTH', icon: Sliders },
           { id: 'midi', label: 'MIDI', icon: Wand2 },
-          { id: 'library', label: 'PRESETS', icon: BookOpen },
-          { id: 'theme', label: 'THEMES', icon: Palette }
+          { id: 'library', label: 'PRESETS', icon: BookOpen }
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -602,93 +589,6 @@ export default function StudioDashboard({
           </div>
         )}
 
-        {/* TAB 4: THEMES */}
-        {activeTab === 'theme' && (
-          <div className="space-y-6">
-            <div className="space-y-1 bg-white/[0.02] border border-white/5 rounded-2xl p-4">
-              <h3 className="text-[11px] font-bold text-white uppercase tracking-wider">Themes</h3>
-              <p className="text-[9px] text-slate-400">Select standard presets or build a completely custom workspace look.</p>
-            </div>
-
-            {/* Quick Themes */}
-            <div className="space-y-3">
-              <h4 className="text-[9px] font-black text-slate-400 tracking-widest uppercase">Presets</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {[...THEMES, ...customThemes].map(theme => (
-                  <button
-                    key={theme.id}
-                    onClick={() => setCurrentTheme(theme)}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-pointer text-left ${
-                      currentTheme.id === theme.id 
-                        ? 'border-white/30 bg-white/10 text-white font-bold' 
-                        : 'glass-gloss text-slate-300'
-                    }`}
-                  >
-                    <div 
-                      className="w-3.5 h-3.5 rounded-full shrink-0 border border-white/10" 
-                      style={{ background: theme.isRainbow ? 'linear-gradient(135deg, #ff2e93, #00f0ff)' : `linear-gradient(135deg, ${theme.color}, ${theme.secondary || '#000000'})` }} 
-                    />
-                    <span className="text-[10px] truncate">{theme.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="h-px bg-white/[0.06]" />
-
-            {/* Custom Theme Creator */}
-            <div className="space-y-4 bg-white/[0.02] border border-white/5 rounded-2xl p-4">
-              <h4 className="text-[10px] font-black text-white tracking-widest uppercase">Theme Creator</h4>
-              
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold text-slate-400 uppercase">Theme Name</label>
-                <input 
-                  type="text" 
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-[11px] font-bold text-white focus:outline-none focus:border-indigo-400 transition-colors"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase block">Primary Color</label>
-                  <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded px-2 py-1.5">
-                    <input 
-                      type="color" 
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="w-6 h-6 border-0 bg-transparent cursor-pointer rounded overflow-hidden shrink-0"
-                    />
-                    <span className="text-[9px] font-mono uppercase text-slate-300 truncate">{primaryColor}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase block">Secondary Color</label>
-                  <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded px-2 py-1.5">
-                    <input 
-                      type="color" 
-                      value={secondaryColor}
-                      onChange={(e) => setSecondaryColor(e.target.value)}
-                      className="w-6 h-6 border-0 bg-transparent cursor-pointer rounded overflow-hidden shrink-0"
-                    />
-                    <span className="text-[9px] font-mono uppercase text-slate-300 truncate">{secondaryColor}</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={createCustomTheme}
-                className="w-full flex items-center justify-center p-3 rounded-xl text-black text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all cursor-pointer shadow-md glass-gloss"
-                style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`, color: '#ffffff' }}
-              >
-                Create Theme
-              </button>
-            </div>
-
-          </div>
-        )}
 
       </div>
     </motion.div>

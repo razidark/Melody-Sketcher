@@ -58,8 +58,14 @@ export default function MixerConsole({
               key={layer.id}
               className={`w-36 h-[210px] rounded-[24px] transition-all duration-300 flex flex-col items-center p-4 shrink-0 relative cursor-pointer border
                 ${isSelected 
-                  ? 'border-white/20 bg-gradient-to-b from-white/[0.08] to-black/40 shadow-[0_12px_40px_rgba(0,0,0,0.6)]' 
-                  : 'border-white/5 bg-black/20 hover:bg-white/[0.03] hover:border-white/10'}`}
+                  ? 'bg-gradient-to-b from-white/[0.06] to-black/50' 
+                  : 'bg-black/20 hover:bg-white/[0.02]'}`}
+              style={{
+                borderColor: isSelected ? `${layer.color}66` : 'rgba(255,255,255,0.05)',
+                boxShadow: isSelected 
+                  ? `0 12px 40px rgba(0,0,0,0.65), 0 0 15px ${layer.color}20, inset 0 1px 0 0 rgba(255,255,255,0.06)` 
+                  : '0 4px 12px rgba(0,0,0,0.15)'
+              }}
               onClick={() => setActiveLayerId(layer.id)}
             >
               {/* Track color band */}
@@ -229,8 +235,14 @@ export default function MixerConsole({
         {(() => {
           const drumVolPct = ((rhythmVolume - -60) / 66) * 100;
           return (
-            <div className="w-36 h-[210px] rounded-[24px] bg-gradient-to-b from-indigo-500/[0.08] to-black/40 border border-indigo-500/30 flex flex-col items-center p-4 shrink-0 relative shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
-              <div className="absolute top-0 left-4 right-4 h-1.5 rounded-b bg-indigo-400 shadow-[0_2px_15px_rgba(129,140,248,0.8)]" />
+            <div 
+              className="w-36 h-[210px] rounded-[24px] bg-gradient-to-b from-indigo-500/[0.06] to-black/50 border flex flex-col items-center p-4 shrink-0 relative"
+              style={{
+                borderColor: 'rgba(129, 140, 248, 0.4)',
+                boxShadow: '0 12px 40px rgba(0,0,0,0.65), 0 0 15px rgba(129, 140, 248, 0.15), inset 0 1px 0 0 rgba(255,255,255,0.06)'
+              }}
+            >
+              <div className="absolute top-0 left-4 right-4 h-1.5 rounded-b bg-indigo-400" />
               <span className="text-[12px] font-black uppercase tracking-wider text-indigo-300 mt-1 select-none">DRUM BUS</span>
               
               {/* Stereo Center/Pan label placeholder */}
@@ -344,8 +356,14 @@ export default function MixerConsole({
         {(() => {
           const masterVolPct = ((masterVolume - -60) / 70) * 100;
           return (
-            <div className="w-36 h-[210px] rounded-[24px] bg-gradient-to-b from-white/[0.08] to-black/60 border border-white/20 transition-all flex flex-col items-center p-4 shrink-0 relative shadow-[0_12px_40px_rgba(0,0,0,0.8)]">
-              <div className="absolute top-0 left-4 right-4 h-1.5 rounded-b bg-white shadow-[0_2px_15px_rgba(255,255,255,0.8)]" />
+            <div 
+              className="w-36 h-[210px] rounded-[24px] bg-gradient-to-b from-white/[0.06] to-black/50 border transition-all flex flex-col items-center p-4 shrink-0 relative"
+              style={{
+                borderColor: 'rgba(255, 255, 255, 0.25)',
+                boxShadow: '0 12px 40px rgba(0,0,0,0.7), 0 0 20px rgba(255, 255, 255, 0.1), inset 0 1px 0 0 rgba(255,255,255,0.1)'
+              }}
+            >
+              <div className="absolute top-0 left-4 right-4 h-1.5 rounded-b bg-white" />
               
               <span className="text-[12px] font-black uppercase tracking-wider text-slate-100 mt-1 select-none leading-none">MASTER</span>
               

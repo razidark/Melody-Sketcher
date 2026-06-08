@@ -56,8 +56,8 @@ export default function TrackTabs({
   }, [trackActivity]);
 
   return (
-    <div className={`h-20 bg-black/35 backdrop-blur-3xl border-b border-white/[0.05] flex items-center gap-3 overflow-x-auto no-scrollbar z-40 relative shrink-0 transition-all duration-300 shadow-sm
-      ${viewMode === 'studio' ? 'pl-22 pr-6' : 'px-8'}
+    <div className={`h-16 bg-black/45 backdrop-blur-3xl border-b border-white/[0.05] flex items-center gap-2.5 overflow-x-auto no-scrollbar z-40 relative shrink-0 transition-all duration-300 shadow-sm track-tabs-strip
+      ${viewMode === 'studio' ? 'pl-24 pr-4' : 'px-6'}
     `}>
       {layers.map(layer => {
         const isActive = layer.id === activeLayerId;
@@ -67,7 +67,7 @@ export default function TrackTabs({
           <div 
             key={layer.id}
             onClick={() => setActiveLayerId(layer.id)}
-            className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer group relative border hover:scale-[1.02] active:scale-[0.98]
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 whitespace-nowrap cursor-pointer group relative border hover:scale-[1.02] active:scale-[0.98] track-tab
               ${isActive 
                 ? 'bg-white/[0.08] text-white border-white/[0.15] shadow-[0_4px_16px_rgba(0,0,0,0.25)] glass-gloss' 
                 : 'bg-white/[0.02] text-slate-400 border-white/[0.04] hover:bg-white/[0.04] hover:text-slate-200 glass-gloss'
@@ -193,7 +193,7 @@ export default function TrackTabs({
           className="flex items-center gap-1 px-3 py-2 rounded-lg glass-gloss text-slate-300 hover:text-white transition-all text-[9px] font-black uppercase tracking-wider cursor-pointer active:scale-95 shadow-sm"
           title="Transpose -1 Octave"
         >
-          <ArrowDown className="w-3.5 h-3.5 text-pink-400" /> -12
+          <ArrowDown className="w-3.5 h-3.5 text-[#ff9f43]" /> -12
         </button>
         <button
           onClick={() => {

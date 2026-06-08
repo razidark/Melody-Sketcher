@@ -31,7 +31,8 @@ export default function useAudioExport({
   setBpm,
   setBarCount,
   setLayers,
-  setActiveLayerId
+  setActiveLayerId,
+  showToast
 }) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -147,17 +148,17 @@ export default function useAudioExport({
           }
           setLayers(newLayers);
           setActiveLayerId(newLayers[0].id);
-          alert(`Successfully imported ${newLayers.length} tracks! Expanded timeline to ${requiredBars} bars.`);
+          showToast(`Successfully imported ${newLayers.length} tracks! Expanded timeline to ${requiredBars} bars.`, 'success');
         } else {
-          alert("No valid notes found in the MIDI file.");
+          showToast('No valid notes found in the MIDI file.', 'warning');
         }
       } catch (err) {
         console.error("MIDI Import Error:", err);
-        alert("Failed to parse MIDI file. Ensure it's a valid .mid file.");
+        showToast("Failed to parse MIDI file. Ensure it's a valid .mid file.", 'error');
       }
     };
     reader.readAsArrayBuffer(file);
-  }, [barCount, setBpm, setBarCount, setLayers, setActiveLayerId]);
+  }, [barCount, setBpm, setBarCount, setLayers, setActiveLayerId, showToast]);
 
   // MIDI Binary Export (.mid)
   const exportMidi = useCallback(() => {
@@ -257,9 +258,9 @@ export default function useAudioExport({
       URL.revokeObjectURL(link.href);
     } catch (err) {
       console.error('MIDI Export failed:', err);
-      alert('MIDI Export failed: ' + err.message);
+      showToast('MIDI Export failed: ' + err.message, 'error');
     }
-  }, [bpm, layers]);
+  }, [bpm, layers, showToast]);
 
   // High-fidelity Offline WAV Audio Export
   const exportWav = useCallback(async () => {
@@ -459,7 +460,7 @@ export default function useAudioExport({
       setTimeout(() => setIsExporting(false), 600);
     } catch (err) {
       console.error("Audio Export failed", err);
-      alert("Audio offline render failed. Please verify composition settings.");
+      showToast('Audio offline render failed. Please verify composition settings.', 'error');
       setIsExporting(false);
     }
   }, [
@@ -476,7 +477,8 @@ export default function useAudioExport({
     phaserLevel,
     eqLowLevel,
     eqMidLevel,
-    eqHighLevel
+    eqHighLevel,
+    showToast
   ]);
 
   return {

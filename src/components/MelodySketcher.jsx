@@ -26,6 +26,9 @@ import SequencerCanvas from './SequencerCanvas';
 import StudioDashboard from './StudioDashboard';
 import InteractiveGuide from './InteractiveGuide';
 import UserManual from './UserManual';
+import UserProfileModal from './UserProfileModal';
+import { ToastContainer } from './Toast';
+import { useToast } from '../hooks/useToast';
 
 import useAudioEngine from '../hooks/useAudioEngine';
 import useAudioExport from '../hooks/useAudioExport';
@@ -33,6 +36,9 @@ import useMidiKeyboard from '../hooks/useMidiKeyboard';
 import useGamepadController from '../hooks/useGamepadController';
 
 export default function MelodySketcher() {
+  // In-app toast notification system
+  const { toasts, showToast, dismissToast } = useToast();
+
   // Safe synchronous load of saved workspace
   const savedWorkspace = (() => {
     try {
@@ -43,43 +49,10 @@ export default function MelodySketcher() {
     }
   })();
 
-  const [customThemes, setCustomThemes] = useState(() => {
-    try {
-      const saved = localStorage.getItem('melody_sketcher_custom_themes');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Save custom themes whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem('melody_sketcher_custom_themes', JSON.stringify(customThemes));
-    } catch {
-      // Ignored
-    }
-  }, [customThemes]);
-
-  const [currentTheme, setCurrentTheme] = useState(() => {
-    if (savedWorkspace?.themeId) {
-      // Check in custom themes first
-      let savedCustom = null;
-      try {
-        const savedThemesStr = localStorage.getItem('melody_sketcher_custom_themes');
-        if (savedThemesStr) {
-          const themes = JSON.parse(savedThemesStr);
-          savedCustom = themes.find(t => t.id === savedWorkspace.themeId);
-        }
-      } catch { /* ignore */ }
-      if (savedCustom) return savedCustom;
-
-      const theme = THEMES.find(t => t.id === savedWorkspace.themeId);
-      if (theme) return theme;
-    }
-    return THEMES[0];
-  });
+  const [customThemes, setCustomThemes] = useState([]);
+  const [currentTheme, setCurrentTheme] = useState(() => THEMES[0]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLooping, setIsLooping] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [bpm, setBpm] = useState(120);
   const [masterVolume, setMasterVolume] = useState(0);
@@ -128,6 +101,96 @@ export default function MelodySketcher() {
   const activeLayer = layers.find(l => l.id === activeLayerId) || layers[0];
   const currentInstrument = activeLayer.instrument;
 
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('melody_sketcher_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const recordNotePlaced = useCallback(() => {
+    setCurrentUser(prev => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        notesPlaced: (prev.notesPlaced || 0) + 1,
+        xp: prev.xp + 10
+      };
+      let xp = updated.xp;
+      let level = updated.level;
+      while (xp >= level * 100 && level < 8) {
+        xp -= level * 100;
+        level += 1;
+        showToast(`⚡ LEVEL UP! You are now Level ${level}!`, 'success');
+      }
+      const finalUser = { ...updated, xp, level };
+      localStorage.setItem('melody_sketcher_user', JSON.stringify(finalUser));
+      return finalUser;
+    });
+  }, [showToast]);
+
+  const recordNotePlayed = useCallback(() => {
+    setCurrentUser(prev => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        notesPlayed: (prev.notesPlayed || 0) + 1,
+        xp: prev.xp + 5
+      };
+      let xp = updated.xp;
+      let level = updated.level;
+      while (xp >= level * 100 && level < 8) {
+        xp -= level * 100;
+        level += 1;
+        showToast(`⚡ LEVEL UP! You are now Level ${level}!`, 'success');
+      }
+      const finalUser = { ...updated, xp, level };
+      localStorage.setItem('melody_sketcher_user', JSON.stringify(finalUser));
+      return finalUser;
+    });
+  }, [showToast]);
+
+  const triggerExportMidi = () => {
+    exportMidi();
+    setCurrentUser(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, xp: prev.xp + 50 };
+      let xp = updated.xp;
+      let level = updated.level;
+      while (xp >= level * 100 && level < 8) {
+        xp -= level * 100;
+        level += 1;
+        showToast(`⚡ LEVEL UP! You are now Level ${level}!`, 'success');
+      }
+      const finalUser = { ...updated, xp, level };
+      localStorage.setItem('melody_sketcher_user', JSON.stringify(finalUser));
+      return finalUser;
+    });
+    showToast("MIDI Exported! +50 XP rewarded.", "success");
+  };
+
+  const triggerExportWav = () => {
+    exportWav();
+    setCurrentUser(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, xp: prev.xp + 50 };
+      let xp = updated.xp;
+      let level = updated.level;
+      while (xp >= level * 100 && level < 8) {
+        xp -= level * 100;
+        level += 1;
+        showToast(`⚡ LEVEL UP! You are now Level ${level}!`, 'success');
+      }
+      const finalUser = { ...updated, xp, level };
+      localStorage.setItem('melody_sketcher_user', JSON.stringify(finalUser));
+      return finalUser;
+    });
+    showToast("WAV Exported! +50 XP rewarded.", "success");
+  };
+
   const setCurrentInstrument = (inst) => {
     setLayers(prev => prev.map(l => l.id === activeLayerId ? { ...l, instrument: inst } : l));
   };
@@ -171,6 +234,42 @@ export default function MelodySketcher() {
   const [history, setHistory] = useState([layers.map(l => ({ id: l.id, notes: l.notes }))]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const isUndoRedoAction = useRef(false);
+
+  const getCurrentWorkspaceData = useCallback(() => {
+    return {
+      themeId: currentTheme.id,
+      bpm,
+      masterVolume,
+      barCount,
+      layers: layers.map(l => ({
+        id: l.id,
+        name: l.name,
+        instrument: { id: l.instrument.id },
+        notes: l.notes,
+        color: l.color,
+        volume: l.volume,
+        pan: l.pan,
+        mute: l.mute,
+        solo: l.solo,
+        attack: l.attack,
+        decay: l.decay,
+        sustain: l.sustain,
+        release: l.release,
+        cutoff: l.cutoff,
+        resonance: l.resonance,
+        humanize: l.humanize
+      })),
+      activeLayerId,
+      reverbLevel,
+      delayLevel,
+      distortionLevel,
+      chorusLevel,
+      phaserLevel,
+      eqLowLevel,
+      eqMidLevel,
+      eqHighLevel
+    };
+  }, [layers, currentTheme, bpm, masterVolume, barCount, activeLayerId, reverbLevel, delayLevel, distortionLevel, chorusLevel, phaserLevel, eqLowLevel, eqMidLevel, eqHighLevel]);
 
   const restoreWorkspace = useCallback((saved) => {
     if (!saved) return;
@@ -382,7 +481,8 @@ export default function MelodySketcher() {
     setBpm,
     setBarCount,
     setLayers,
-    setActiveLayerId
+    setActiveLayerId,
+    showToast
   });
 
   // Interactive component references
@@ -414,7 +514,8 @@ export default function MelodySketcher() {
       return [...prev, { ...note, tick, index }];
     });
     setTrackActivity(prev => ({ ...prev, [activeLayerId]: Date.now() }));
-  }, [activeLayerId, setNotes, playNote]);
+    recordNotePlaced();
+  }, [activeLayerId, setNotes, playNote, recordNotePlaced]);
 
   // Erase a note
   const eraseNoteAt = useCallback((tick, index) => {
@@ -463,6 +564,7 @@ export default function MelodySketcher() {
     const layerColor = layer ? layer.color : '#ffffff';
     triggerKeyHighlight(noteName, layerColor);
     setTrackActivity(prev => ({ ...prev, [activeLayerId]: Date.now() }));
+    recordNotePlayed();
 
     const noteObj = ALL_NOTES.find(n => n.name === noteName);
     if (noteObj) {
@@ -480,14 +582,11 @@ export default function MelodySketcher() {
           playheadPositionRef.current = nextTick;
           setPlayheadPosition(nextTick);
           
-          const playheadEl = document.getElementById('studio-playhead-line');
-          if (playheadEl) {
-            playheadEl.style.left = `${nextTick * BEAT_WIDTH}px`;
-          }
+          updatePlayheadDOM(nextTick);
         }
       }
     }
-  }, [activeLayerId, isRecording, isPlaying, totalTicks, triggerKeyHighlight, playNote, addNoteAt, BEAT_WIDTH, layers]);
+  }, [activeLayerId, isRecording, isPlaying, totalTicks, triggerKeyHighlight, playNote, addNoteAt, layers, recordNotePlayed]);
 
   // Playback Toggle
   const togglePlay = useCallback(async () => {
@@ -523,14 +622,22 @@ export default function MelodySketcher() {
     playheadPositionRef.current = targetTick;
     setPlayheadPosition(targetTick);
     
-    const playheadEl = document.getElementById('studio-playhead-line');
-    if (playheadEl) {
-      playheadEl.style.left = `${targetTick * beatWidthRef.current}px`;
-    }
-    const progressBarEl = document.getElementById('timeline-progress-bar');
-    if (progressBarEl) {
-      progressBarEl.style.width = `${(targetTick / totalTicks) * 100}%`;
-    }
+    updatePlayheadDOM(targetTick);
+  }, [bpm, totalTicks]);
+
+  // Scrub Playhead directly to tick
+  const scrubPlayhead = useCallback(async (tick) => {
+    if (Tone.context.state !== 'running') await Tone.start();
+    const targetTick = Math.max(0, Math.min(tick, totalTicks - 1));
+    const beatDuration = 60 / bpm;
+    const targetSeconds = (targetTick / 4) * beatDuration;
+    
+    Tone.Transport.seconds = targetSeconds;
+    
+    playheadPositionRef.current = targetTick;
+    setPlayheadPosition(targetTick);
+    
+    updatePlayheadDOM(targetTick);
   }, [bpm, totalTicks]);
 
   // Keyboard QWERTY MIDI Hook
@@ -564,6 +671,8 @@ export default function MelodySketcher() {
         setIsInstrumentMenuOpen(false);
         setIsMixerOpen(false);
         setIsDashboardOpen(false);
+        setIsManualOpen(false);
+        setIsProfileOpen(false);
         return;
       }
 
@@ -616,25 +725,13 @@ export default function MelodySketcher() {
         if (e.code === 'ArrowRight') {
           e.preventDefault();
           const nextTick = (playheadPositionRef.current + 1) % totalTicksRef.current;
-          playheadPositionRef.current = nextTick;
-          setPlayheadPosition(nextTick);
-          
-          const playheadEl = document.getElementById('studio-playhead-line');
-          if (playheadEl) {
-            playheadEl.style.left = `${nextTick * beatWidthRef.current}px`;
-          }
+          scrubPlayhead(nextTick);
           return;
         }
         if (e.code === 'ArrowLeft') {
           e.preventDefault();
           const prevTick = (playheadPositionRef.current - 1 + totalTicksRef.current) % totalTicksRef.current;
-          playheadPositionRef.current = prevTick;
-          setPlayheadPosition(prevTick);
-          
-          const playheadEl = document.getElementById('studio-playhead-line');
-          if (playheadEl) {
-            playheadEl.style.left = `${prevTick * beatWidthRef.current}px`;
-          }
+          scrubPlayhead(prevTick);
           return;
         }
 
@@ -659,7 +756,7 @@ export default function MelodySketcher() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlay, playNoteForKeyboard, handleUndo, handleRedo, setMetronome, setViewMode, setActiveLayerId, setBpm, setPlayheadPosition]);
+  }, [togglePlay, playNoteForKeyboard, handleUndo, handleRedo, setMetronome, setViewMode, setActiveLayerId, setBpm, setPlayheadPosition, scrubPlayhead, setIsManualOpen, setIsProfileOpen]);
 
   // Keep stable refs to avoid canceling and rescheduling the Tone.js transport loop
   const rhythmModeRef = useRef(rhythmMode);
@@ -674,8 +771,8 @@ export default function MelodySketcher() {
   const addNoteAtRef = useRef(addNoteAt);
   const metronomeRef = useRef(metronome);
   const layersRef = useRef(layers);
+  const isLoopingRef = useRef(isLooping);
 
-  /* eslint-disable react-hooks/immutability */
   // Sync refs safely in commit phase (avoiding React 19 render-phase ref mutation warning)
   useEffect(() => {
     rhythmModeRef.current = rhythmMode;
@@ -690,8 +787,68 @@ export default function MelodySketcher() {
     addNoteAtRef.current = addNoteAt;
     metronomeRef.current = metronome;
     layersRef.current = layers;
+    isLoopingRef.current = isLooping;
   });
-  /* eslint-enable react-hooks/immutability */
+
+  // Helper to update playhead position and sheet progress shading directly in the DOM
+  function updatePlayheadDOM(tick) {
+    const bw = beatWidthRef.current;
+    const playheadEl = document.getElementById('studio-playhead-line');
+    if (playheadEl) {
+      playheadEl.style.left = `${tick * bw}px`;
+    }
+    const shadeEl = document.getElementById('studio-playhead-shade');
+    if (shadeEl) {
+      shadeEl.style.width = `${tick * bw}px`;
+    }
+    const progressBarEl = document.getElementById('timeline-progress-bar');
+    if (progressBarEl) {
+      progressBarEl.style.width = `${(tick / totalTicksRef.current) * 100}%`;
+    }
+  }
+
+  // Music-reactive border glow & scale pulse
+  useEffect(() => {
+    let animId;
+    const run = () => {
+      let volumeNorm = 0;
+      if (isPlaying && analyserRef && analyserRef.current) {
+        try {
+          const data = analyserRef.current.getValue();
+          let sum = 0;
+          let count = 0;
+          for (let i = 0; i < data.length; i++) {
+            if (data[i] !== undefined && data[i] !== -Infinity) {
+              sum += data[i];
+              count++;
+            }
+          }
+          const avgDb = count > 0 ? sum / count : -100;
+          // Normalize to 0..1 (assuming -100 to 0dB range)
+          volumeNorm = Math.max(0, (avgDb + 100) / 100);
+        } catch {
+          // ignore
+        }
+      }
+
+      const root = document.documentElement;
+      if (root) {
+        // Boost slightly for visual feedback
+        const intensity = volumeNorm * 1.5;
+        root.style.setProperty('--music-glow', `${intensity}`);
+        // Subtle scale pulse (between 1.0 and 1.006)
+        const scaleVal = 1 + Math.max(0, volumeNorm - 0.4) * 0.012;
+        root.style.setProperty('--music-scale', `${scaleVal}`);
+      }
+
+      animId = requestAnimationFrame(run);
+    };
+
+    run();
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, [isPlaying, analyserRef]);
 
   const clickSynthRef = useRef(null);
   useEffect(() => {
@@ -746,18 +903,25 @@ export default function MelodySketcher() {
   // Sequencer loop (runs once, reads from refs)
   useEffect(() => {
     const repeat = (time) => {
-      const currentTick = Math.round(Tone.Transport.getTicksAtTime(time) / (Tone.Transport.PPQ / TICKS_PER_BEAT)) % totalTicksRef.current;
+      const ticks = Tone.Transport.getTicksAtTime(time);
+      const rawTick = Math.round(ticks / (Tone.Transport.PPQ / TICKS_PER_BEAT));
+      
+      if (!isLoopingRef.current && rawTick >= totalTicksRef.current) {
+        Tone.Draw.schedule(() => {
+          setIsPlaying(false);
+          Tone.Transport.stop();
+          playheadPositionRef.current = 0;
+          setPlayheadPosition(0);
+          updatePlayheadDOM(0);
+        }, time);
+        return;
+      }
+
+      const currentTick = rawTick % totalTicksRef.current;
       playheadPositionRef.current = currentTick;
 
       // Update Playhead elements directly in DOM for ultimate performance
-      const playheadEl = document.getElementById('studio-playhead-line');
-      if (playheadEl) {
-        playheadEl.style.left = `${currentTick * beatWidthRef.current}px`;
-      }
-      const progressBarEl = document.getElementById('timeline-progress-bar');
-      if (progressBarEl) {
-        progressBarEl.style.width = `${(currentTick / totalTicksRef.current) * 100}%`;
-      }
+      updatePlayheadDOM(currentTick);
 
       // --- Metronome click generator ---
       if (metronomeRef.current && Tone.Transport.state === 'started' && currentTick % 4 === 0) {
@@ -909,7 +1073,6 @@ export default function MelodySketcher() {
     setLayers,
     isRecording,
     setIsRecording,
-    isPlaying,
     togglePlay,
     seekSeconds,
     handleUndo,
@@ -920,37 +1083,7 @@ export default function MelodySketcher() {
     setGamepadConnectedName
   });
 
-  // Demo song loader
-  const loadDemoSong = (song) => {
-    if (isPlaying) {
-      Tone.Transport.stop();
-      setIsPlaying(false);
-    }
-    
-    setBpm(song.bpm);
-    setBarCount(song.barCount);
-    setRhythmMode(song.rhythmMode);
 
-    const newLayers = song.tracks.map((track, trackIndex) => {
-      const instrument = INSTRUMENTS.find(inst => inst.id === track.instrumentId) || INSTRUMENTS[0];
-      return {
-        id: trackIndex + 1,
-        name: track.name,
-        instrument: instrument,
-        notes: track.notes,
-        color: track.color,
-        volume: 0,
-        pan: 0,
-        mute: false,
-        solo: false
-      };
-    });
-
-    setLayers(newLayers);
-    setActiveLayerId(1);
-    
-    alert(`Loaded "${song.name}" successfully! Press Play to listen.`);
-  };
 
   // Remove a track
   const removeLayer = (id, e) => {
@@ -969,7 +1102,7 @@ export default function MelodySketcher() {
 
   return (
     <div 
-      className="flex flex-col fixed inset-0 overflow-hidden text-white font-['Outfit'] bg-[#020203] p-4.5" 
+      className="flex flex-col fixed inset-0 overflow-hidden text-white font-['Outfit'] bg-[#020203] p-4 daw-outer-padding" 
       ref={containerRef}
       onPointerDown={() => {
         if (Tone.context.state !== 'running') {
@@ -978,8 +1111,10 @@ export default function MelodySketcher() {
       }}
     >
       
-      {/* Outer DAW Floating Shell */}
-      <div className="flex-1 flex flex-col overflow-hidden rounded-[24px] border border-white/[0.08] bg-zinc-950/20 backdrop-blur-3xl shadow-[0_24px_80px_rgba(0,0,0,0.85)] relative">
+      {/* Rainbow border wrapper */}
+      <div className="flex-1 flex flex-col overflow-hidden rounded-[24px] p-[1.5px] rainbow-wrapper">
+        {/* Outer DAW Floating Shell */}
+        <div className="flex-1 flex flex-col overflow-hidden rounded-[23px] border border-white/[0.08] bg-zinc-950/20 backdrop-blur-3xl shadow-[0_24px_80px_rgba(0,0,0,0.85)] relative daw-shell">
       
       {/* CSS hardware accelerated peak decay and dynamic theme overrides */}
       <style>{`
@@ -992,9 +1127,9 @@ export default function MelodySketcher() {
 
       {/* Dynamic background ambient glow */}
       <div 
-        className="absolute inset-0 pointer-events-none transition-all duration-[2000ms] z-0 opacity-20 blur-[150px]"
+        className="absolute inset-0 pointer-events-none transition-all duration-[2000ms] z-0 opacity-40 blur-[150px]"
         style={{
-          background: `radial-gradient(ellipse at 50% 40%, ${currentTheme.color}33 0%, ${currentTheme.secondary || currentTheme.color}0a 60%, transparent 100%)`
+          background: `radial-gradient(ellipse at 50% 30%, rgba(0, 240, 255, 0.08) 0%, rgba(255, 46, 147, 0.04) 50%, transparent 100%)`
         }}
       />
 
@@ -1018,9 +1153,8 @@ export default function MelodySketcher() {
         setZoom={setZoom}
         fileInputRef={fileInputRef}
         handleMidiUpload={handleMidiUpload}
-        exportMidi={exportMidi}
-        exportWav={exportWav}
-        loadDemoSong={loadDemoSong}
+        exportMidi={triggerExportMidi}
+        exportWav={triggerExportWav}
         currentInstrument={currentInstrument}
         isInstrumentMenuOpen={isInstrumentMenuOpen}
         setIsInstrumentMenuOpen={setIsInstrumentMenuOpen}
@@ -1031,6 +1165,8 @@ export default function MelodySketcher() {
         setIsDashboardOpen={setIsDashboardOpen}
         openGuide={() => setIsGuideOpen(true)}
         openManual={() => setIsManualOpen(true)}
+        openProfile={() => setIsProfileOpen(true)}
+        currentUser={currentUser}
       />
 
       <div className="flex-1 flex overflow-hidden relative">
@@ -1067,6 +1203,7 @@ export default function MelodySketcher() {
             BEAT_WIDTH={BEAT_WIDTH}
             ROW_HEIGHT={ROW_HEIGHT}
             gamepadCursor={gamepadConnectedName ? gamepadCursor : null}
+            scrubPlayhead={scrubPlayhead}
           />
           {/* Floating Mixer Console Console */}
           <AnimatePresence>
@@ -1163,6 +1300,8 @@ export default function MelodySketcher() {
 
       <TransportBar 
         isPlaying={isPlaying}
+        isLooping={isLooping}
+        setIsLooping={setIsLooping}
         togglePlay={togglePlay}
         seekSeconds={seekSeconds}
         isRecording={isRecording}
@@ -1196,6 +1335,7 @@ export default function MelodySketcher() {
         analyserRef={analyserRef}
       />
 
+        </div>
       </div>
 
       {/* High-Fidelity Rendering Modal Overlay */}
@@ -1268,6 +1408,26 @@ export default function MelodySketcher() {
         )}
       </AnimatePresence>
 
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => {
+          setIsProfileOpen(false);
+          try {
+            const saved = localStorage.getItem('melody_sketcher_user');
+            setCurrentUser(saved ? JSON.parse(saved) : null);
+          } catch {
+            // ignore
+          }
+        }}
+        currentTheme={currentTheme}
+        getCurrentWorkspaceData={getCurrentWorkspaceData}
+        onLoadProjectData={(projData) => {
+          restoreWorkspace(projData);
+        }}
+        showToast={showToast}
+      />
+
       {/* Gamepad Connected Alert Toast */}
       <AnimatePresence>
         {gamepadConnectedName && (
@@ -1287,6 +1447,9 @@ export default function MelodySketcher() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* In-App Toast Notifications */}
+      <ToastContainer toasts={toasts} dismissToast={dismissToast} />
     </div>
   );
 }

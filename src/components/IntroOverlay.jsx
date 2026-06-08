@@ -22,7 +22,7 @@ export default function IntroOverlay({
       icon: <Music className="w-6 h-6" />,
       title: "Multi-Track Sequencer",
       desc: "Paint complex melodies across unlimited layers, each with unique colors, instruments, and real-time canvas editing.",
-      accent: '#ff2e93'
+      accent: '#db2777'
     },
     {
       icon: <Sliders className="w-6 h-6" />,
@@ -95,18 +95,18 @@ export default function IntroOverlay({
         variants={container}
         initial="hidden"
         animate="visible"
-        className="relative max-w-5xl w-full rounded-[32px] overflow-y-auto max-h-[92vh] scrollbar-studio border"
+        className="relative max-w-5xl w-full rounded-[32px] overflow-y-auto max-h-[92vh] scrollbar-studio border animate-fade-in"
         style={{
-          background: 'rgba(15, 15, 25, 0.65)',
-          backdropFilter: 'blur(30px) saturate(240%)',
+          background: 'rgba(5, 5, 8, 0.85)',
+          backdropFilter: 'blur(35px) saturate(240%)',
           borderColor: 'rgba(255,255,255,0.08)',
-          boxShadow: `0 60px 120px -20px rgba(0,0,0,0.95), inset 0 1px 0 0 rgba(255,255,255,0.15), inset -2px 0 8px rgba(0,240,255,0.15), inset 2px 0 8px rgba(255,46,147,0.15), 0 0 80px -20px ${currentTheme.color}30`
+          boxShadow: `0 60px 120px -20px rgba(0,0,0,0.98), inset 0 1px 0 0 rgba(255,255,255,0.15), inset -2px 0 8px rgba(0,240,255,0.18), inset 2px 0 8px rgba(46,255,147,0.18), 0 0 80px -20px ${currentTheme.color}30`
         }}
       >
         {/* Top accent line */}
         <div className="absolute top-0 left-8 right-8 h-px" style={{ background: getThemeBg(currentTheme), opacity: 0.5 }} />
         
-        <div className="p-8 md:p-14 flex flex-col gap-10">
+        <div className="p-6 md:p-10 flex flex-col gap-7">
           {/* Close button */}
           <motion.button 
             variants={item}
@@ -119,10 +119,10 @@ export default function IntroOverlay({
           </motion.button>
 
           {/* Hero branding */}
-          <motion.div variants={item} className="text-center flex flex-col items-center gap-4 pt-2">
+          <motion.div variants={item} className="text-center flex flex-col items-center gap-3 pt-0">
             {/* Custom Glowing Emblem */}
             <motion.div 
-              className="w-24 h-24 rounded-[28px] flex items-center justify-center transition-all duration-300 relative overflow-hidden shadow-[0_0_40px_rgba(255,255,255,0.1)] border border-white/15 cursor-pointer"
+              className="w-16 h-16 rounded-[20px] flex items-center justify-center transition-all duration-300 relative overflow-hidden shadow-[0_0_40px_rgba(255,255,255,0.1)] border border-white/15 cursor-pointer"
               style={{
                 background: 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))',
               }}
@@ -130,40 +130,37 @@ export default function IntroOverlay({
             >
               {/* Blur glow */}
               <div 
-                className="absolute inset-1 rounded-[24px] opacity-40 blur-[4px]"
+                className="absolute inset-1 rounded-[16px] opacity-40 blur-[4px]"
                 style={{ background: getThemeBg(currentTheme) }}
               />
               
               {/* Theme gradient */}
               <div 
-                className="absolute inset-1.5 rounded-[22px] opacity-95"
+                className="absolute inset-1.5 rounded-[14px] opacity-95"
                 style={{ background: getThemeBg(currentTheme) }}
               />
               
               {/* Sheen reflection */}
               <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent translate-x-[-100%] hover:translate-x-[100%] transition-transform duration-1000 ease-out" />
               
-              <Music className="w-12 h-12 text-white relative z-10 drop-shadow-lg" />
+              <Music className="w-8 h-8 text-white relative z-10 drop-shadow-lg" />
             </motion.div>
             
-            <div className="mt-4">
-              <h1 className="text-4xl md:text-5.5xl font-black tracking-[0.35em] uppercase leading-none select-none">
+            <div className="mt-1">
+              <h1 className="text-3xl md:text-4.5xl font-black tracking-[0.3em] uppercase leading-none select-none">
                 <span className="text-white">MELODY</span>{' '}
-                <span style={{ 
-                  color: currentTheme.color, 
-                  textShadow: `0 0 24px ${currentTheme.color}90` 
-                }}>SKETCHER</span>
+                <span className="bg-gradient-to-r from-[#ff3366] via-[#ff9f43] to-[#00f0ff] bg-clip-text text-transparent filter drop-shadow-[0_0_24px_rgba(0,240,255,0.45)] font-black">SKETCHER</span>
               </h1>
-              <div className="flex items-center justify-center gap-4 mt-4">
-                <div className="h-px flex-1 max-w-20 bg-gradient-to-r from-transparent to-white/15" />
-                <span className="text-[12px] font-black text-indigo-400 tracking-[0.4em] uppercase">
+              <div className="flex items-center justify-center gap-4 mt-2">
+                <div className="h-px flex-1 max-w-16 bg-gradient-to-r from-transparent to-white/15" />
+                <span className="text-[10px] font-black text-slate-400 tracking-[0.4em] uppercase">
                   Studio Workstation
                 </span>
-                <div className="h-px flex-1 max-w-20 bg-gradient-to-l from-transparent to-white/15" />
+                <div className="h-px flex-1 max-w-16 bg-gradient-to-l from-transparent to-white/15" />
               </div>
             </div>
             
-            <p className="text-slate-300 text-sm md:text-base max-w-xl mt-3 font-medium leading-relaxed">
+            <p className="text-slate-300 text-xs md:text-sm max-w-xl mt-1.5 font-medium leading-relaxed">
               An interactive web workstation for sketching melodies, composing with procedural drum patterns, mixing multi-track audio, and exporting CD-quality WAV files.
             </p>
           </motion.div>
@@ -250,13 +247,13 @@ export default function IntroOverlay({
           </motion.div>
 
           {/* CTA Buttons */}
-          <motion.div variants={item} className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-4 pb-2">
+          <motion.div variants={item} className="flex flex-col sm:flex-row justify-center items-center gap-3 pt-2 pb-0">
             {hasSavedWorkspace && (
               <motion.button
                 onClick={restoreLastSession}
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
-                className="relative group flex items-center gap-3 px-8 py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-sm cursor-pointer overflow-hidden border border-white/20 transition-all duration-300"
+                className="relative group flex items-center gap-3 px-6 py-3.5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs cursor-pointer overflow-hidden border border-white/20 transition-all duration-300"
                 style={{ 
                   background: 'rgba(255,255,255,0.03)',
                   boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 0 rgba(255,255,255,0.05)'
@@ -270,14 +267,14 @@ export default function IntroOverlay({
               onClick={launchStudio}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
-              className="relative group flex items-center gap-3 px-10 py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-sm cursor-pointer overflow-hidden isolate transition-all duration-300"
+              className="relative group flex items-center gap-3 px-8 py-3.5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs cursor-pointer overflow-hidden isolate transition-all duration-300"
               style={{ 
                 background: getThemeBg(currentTheme),
                 boxShadow: `0 20px 48px -6px ${currentTheme.color}80, inset 0 1px 0 0 rgba(255,255,255,0.3), 0 0 0 1px rgba(255,255,255,0.1)`
               }}
             >
               <div className="absolute inset-0 bg-white/0 group-hover:bg-white/15 transition-all duration-300" />
-              <Play className="w-5 h-5 text-white fill-white drop-shadow-sm relative z-10" /> 
+              <Play className="w-4 h-4 text-white fill-white drop-shadow-sm relative z-10" /> 
               <span className="text-white drop-shadow-sm relative z-10">
                 {hasSavedWorkspace ? 'Start Fresh' : 'Launch Studio'}
               </span>

@@ -2,16 +2,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
-  --bg-color: #07070a;
-  --surface-color: #111115;
-  --accent-primary: #7c3aed;
-  --accent-secondary: #3b82f6;
-  --text-main: #f1f5f9;
-  --text-dim: #64748b;
-  --border-color: rgba(255, 255, 255, 0.06);
-  --grid-line: rgba(255, 255, 255, 0.03);
+  --bg-color: #010103;
+  --surface-color: #050508;
+  --accent-primary: #8b5cf6;
+  --accent-secondary: #00f0ff;
+  --text-main: #f8fafc;
+  --text-dim: #94a3b8;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --grid-line: rgba(255, 255, 255, 0.04);
   --key-white: #ffffff;
-  --key-black: #1e1e22;
+  --key-black: #0c0c0f;
+  --piano-width: 6rem; /* 96px — synced with Tailwind w-24 */
 }
 
 * {
@@ -32,20 +33,22 @@ html, body, #root, .app-container {
 
 body {
   font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: var(--bg-color);
+  background-color: #010103;
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   position: relative;
 }
 
-/* Subtle dot-grid overlay */
+/* Vibrant neon-tech grid overlay */
 body::before {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(rgba(0, 240, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(46, 255, 147, 0.02) 1px, transparent 1px);
+  background-size: 48px 48px;
   pointer-events: none;
   z-index: 0;
 }
@@ -57,42 +60,43 @@ body::before {
 
 /* ─── Glass Panels ────────────────────────────────── */
 .glass {
-  background: rgba(10, 10, 15, 0.55);
-  -webkit-backdrop-filter: blur(40px) saturate(220%);
-  backdrop-filter: blur(40px) saturate(220%);
+  background: rgba(3, 3, 5, 0.75);
+  -webkit-backdrop-filter: blur(40px) saturate(240%);
+  backdrop-filter: blur(40px) saturate(240%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 
-    0 24px 60px rgba(0, 0, 0, 0.75), 
+    0 24px 60px rgba(0, 0, 0, 0.85), 
     inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
     inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
-    inset 1px 0 0 0 rgba(255, 46, 147, 0.15), /* Prism red-pink left */
-    inset -1px 0 0 0 rgba(0, 240, 255, 0.15); /* Prism cyan right */
+    inset 1px 0 0 0 rgba(46, 255, 147, 0.25), /* Vibrant Prism neon-lime left */
+    inset -1px 0 0 0 rgba(0, 240, 255, 0.25); /* Vibrant Prism cyan right */
 }
 
 .glass-dark {
-  background: rgba(4, 4, 6, 0.65);
-  -webkit-backdrop-filter: blur(50px) saturate(240%);
-  backdrop-filter: blur(50px) saturate(240%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(1, 1, 2, 0.85);
+  -webkit-backdrop-filter: blur(50px) saturate(250%);
+  backdrop-filter: blur(50px) saturate(250%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 
-    0 32px 80px rgba(0, 0, 0, 0.85), 
+    0 32px 80px rgba(0, 0, 0, 0.95), 
     inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-    inset 1px 0 0 0 rgba(255, 46, 147, 0.1),  /* Prism red-pink left */
-    inset -1px 0 0 0 rgba(0, 240, 255, 0.1);  /* Prism cyan right */
+    inset 1px 0 0 0 rgba(46, 255, 147, 0.2),  /* Vibrant Prism neon-lime left */
+    inset -1px 0 0 0 rgba(0, 240, 255, 0.2);  /* Vibrant Prism cyan right */
 }
 
-/* ─── Text Effects ────────────────────────────────── */
 .gradient-text {
-  background: linear-gradient(135deg, #a78bfa, #60a5fa, #f472b6);
+  background: linear-gradient(135deg, #ff3366, #ff9f43, #2ebd59, #00f0ff);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-size: 200% auto;
+  background-size: 300% auto;
   animation: shine 4s linear infinite;
 }
 
 @keyframes shine {
-  to { background-position: 200% center; }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* ─── Scrollbar: Hidden ───────────────────────────── */
@@ -110,12 +114,12 @@ body::before {
   background: rgba(0, 0, 0, 0.15);
 }
 .scrollbar-studio::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #ff2e93 0%, #a78bfa 25%, #3b82f6 50%, #00f0ff 75%, #ff2e93 100%);
+  background: linear-gradient(135deg, #ff3366 0%, #ff9f43 25%, #2ebd59 50%, #00f0ff 75%, #0066ff 100%);
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .scrollbar-studio::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #ff55a9 0%, #bca5ff 25%, #60a5fa 50%, #3bf2ff 75%, #ff55a9 100%);
+  background: linear-gradient(135deg, #ff5e84 0%, #ffb66c 25%, #56db7d 50%, #3bf2ff 75%, #3b82f6 100%);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -156,17 +160,21 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 16px;
-  height: 32px;
-  background: transparent;
+  height: 24px;
+  background: #ffffff;
+  border-radius: 4px;
   cursor: pointer;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
 
 input[type="range"]::-moz-range-thumb {
   width: 16px;
-  height: 32px;
-  background: transparent;
+  height: 24px;
+  background: #ffffff;
+  border-radius: 4px;
   border: none;
   cursor: pointer;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
 
 /* Hide number input spinners */
@@ -185,11 +193,11 @@ input[type="range"]::-moz-range-thumb {
 .glass-gloss {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  background: linear-gradient(135deg, rgba(8, 8, 12, 0.8) 0%, rgba(4, 4, 6, 0.9) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
   box-shadow: 
-    0 8px 32px 0 rgba(0, 0, 0, 0.37),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.12) !important;
+    0 8px 32px 0 rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08) !important;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
 }
 
@@ -203,9 +211,9 @@ input[type="range"]::-moz-range-thumb {
   background: linear-gradient(
     to right,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.03) 30%,
-    rgba(255, 255, 255, 0.15) 50%,
-    rgba(255, 255, 255, 0.03) 70%,
+    rgba(255, 255, 255, 0.02) 30%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.02) 70%,
     rgba(255, 255, 255, 0) 100%
   );
   transform: skewX(-25deg) translateX(-100%);
@@ -218,11 +226,109 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .glass-gloss:hover {
-  border-color: rgba(255, 255, 255, 0.2) !important;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%) !important;
+  border-color: rgba(0, 240, 255, 0.3) !important;
+  background: linear-gradient(135deg, rgba(12, 12, 18, 0.9) 0%, rgba(6, 6, 9, 0.95) 100%) !important;
   box-shadow: 
-    0 12px 40px 0 rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
-    0 0 15px var(--accent-glow, rgba(255, 255, 255, 0.1)) !important;
+    0 12px 40px 0 rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+    0 0 15px rgba(0, 240, 255, 0.25) !important;
+}
+
+/* ─── Responsive: Compact padding at narrower viewports ── */
+@media (max-width: 1280px) {
+  :root {
+    --piano-width: 5rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --piano-width: 4.5rem;
+  }
+}
+
+/* ─── Responsive: Header ─────────────────────────── */
+@media (max-width: 1280px) {
+  .header-inner { padding-left: 2rem !important; padding-right: 2rem !important; }
+}
+@media (max-width: 1024px) {
+  .header-inner { padding-left: 1rem !important; padding-right: 1rem !important; gap: 0.75rem !important; }
+}
+
+/* ─── Responsive: Transport Bar ──────────────────── */
+@media (max-width: 1280px) {
+  .transport-inner { padding-left: 2rem !important; padding-right: 2rem !important; }
+}
+@media (max-width: 1024px) {
+  .transport-inner { 
+    padding-left: 1rem !important; 
+    padding-right: 1rem !important; 
+    gap: 0.5rem !important;
+  }
+  .transport-inner .transport-left { gap: 0.35rem !important; }
+  .transport-inner .transport-right { gap: 0.35rem !important; }
+}
+@media (max-width: 860px) {
+  .transport-inner { 
+    grid-template-columns: auto 1fr auto !important;
+  }
+  .transport-inner .transport-left { gap: 0.25rem !important; }
+}
+
+/* ─── Responsive: Track Tabs strip ───────────────── */
+@media (max-width: 1024px) {
+  .track-tabs-strip {
+    gap: 0.35rem !important;
+    height: 3.5rem !important;
+  }
+  .track-tabs-strip .track-tab {
+    padding: 0.35rem 0.75rem !important;
+    font-size: 9px !important;
+  }
+}
+
+/* ─── Responsive: Outer padding ──────────────────── */
+.daw-outer-padding {
+  padding: 1.25rem !important;
+}
+@media (max-width: 860px) {
+  .daw-outer-padding { padding: 0.5rem !important; }
+  .daw-shell { border-radius: 16px !important; }
+}
+@media (max-width: 640px) {
+  .daw-outer-padding { padding: 0.25rem !important; }
+  .daw-shell { border-radius: 12px !important; }
+}
+
+/* ─── Animated Rainbow Border Wrapper ──────────────── */
+.rainbow-wrapper {
+  background: linear-gradient(90deg, #ff3366, #ff9f43, #2ebd59, #00f0ff, #0066ff, #ff3366) !important;
+  background-size: 300% 300% !important;
+  animation: rainbowBorder 8s linear infinite !important;
+  box-shadow: 0 0 calc(18px + var(--music-glow, 0) * 40px) rgba(99, 102, 241, calc(0.12 + var(--music-glow, 0) * 0.48)) !important;
+  transform: scale(var(--music-scale, 1)) !important;
+  transition: transform 0.05s ease-out !important;
+}
+
+@keyframes rainbowBorder {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ─── Timeline Ruler (top of canvas) ─────────────── */
+.timeline-ruler {
+  height: 24px;
+  min-height: 24px;
+  background: rgba(0, 0, 0, 0.55);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.timeline-ruler canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 

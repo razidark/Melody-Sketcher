@@ -32,9 +32,8 @@ const FxSlider = ({ label, value, onChange, color, min = 0, max = 1, step = 0.1,
             left: `calc(${percent}% - 11px)` 
           }}
         >
-          {/* Inner cap ring details */}
           <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-t from-[#94a3b8] to-[#cbd5e1] flex items-center justify-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
+            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }} />
           </div>
         </div>
         {/* Invisible Range Slider for Native Drag Behavior */}
@@ -179,10 +178,10 @@ export default function MasterFxPanel({
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       className="absolute right-5 top-5 bottom-5 w-[420px] z-50 flex flex-col rounded-[28px] overflow-hidden border"
       style={{
-        background: 'rgba(15, 15, 25, 0.65)',
-        backdropFilter: 'blur(35px) saturate(220%)',
+        background: 'rgba(5, 5, 8, 0.85)',
+        backdropFilter: 'blur(35px) saturate(240%)',
         borderColor: 'rgba(255,255,255,0.08)',
-        boxShadow: `0 24px 64px rgba(0,0,0,0.85), inset 0 1px 0 0 rgba(255,255,255,0.15), inset -2px 0 8px rgba(0,240,255,0.12), inset 2px 0 8px rgba(255,46,147,0.12), 0 0 40px -10px ${currentTheme.color}20`
+        boxShadow: `0 24px 64px rgba(0,0,0,0.95), inset 0 1px 0 0 rgba(255,255,255,0.15), inset -2px 0 8px rgba(0,240,255,0.15), inset 2px 0 8px rgba(46,255,147,0.15), 0 0 40px -10px ${currentTheme.color}20`
       }}
     >
       {/* Header */}

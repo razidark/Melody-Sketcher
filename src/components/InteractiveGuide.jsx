@@ -30,7 +30,7 @@ const GUIDE_SLIDES = [
     title: 'Drawing Notes',
     description: 'Use the sequencer canvas to paint notes. Double-click or click-drag to add notes. Right-click or double-tap to erase them.',
     icon: MousePointer,
-    color: '#ff2e93',
+    color: '#ff3366',
     component: () => (
       <div className="flex flex-col gap-3 p-4 bg-white/[0.02] border border-white/5 rounded-2xl w-full">
         <div className="h-28 w-full bg-black/40 rounded-xl relative overflow-hidden border border-white/10 flex items-center justify-center">
@@ -39,10 +39,10 @@ const GUIDE_SLIDES = [
               <div key={i} className="border border-white/40" />
             ))}
           </div>
-          <div className="w-14 h-6 rounded-lg bg-pink-500 shadow-[0_0_15px_rgba(244,114,182,0.6)] flex items-center justify-center text-[10px] font-black text-white relative -translate-x-8">
+          <div className="w-14 h-6 rounded-lg bg-[#ff3366] shadow-[0_0_15px_rgba(255,51,102,0.6)] flex items-center justify-center text-[10px] font-black text-white relative -translate-x-8">
             C4
           </div>
-          <div className="w-14 h-6 rounded-lg bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.6)] flex items-center justify-center text-[10px] font-black text-white relative translate-x-8 translate-y-4">
+          <div className="w-14 h-6 rounded-lg bg-[#3a86ff] shadow-[0_0_15px_rgba(58,134,255,0.6)] flex items-center justify-center text-[10px] font-black text-white relative translate-x-8 translate-y-4">
             E4
           </div>
           <div className="absolute text-[9px] font-bold text-slate-500 bottom-2 right-2">Click-Drag to Paint</div>

@@ -11,7 +11,6 @@ export default function useGamepadController({
   setLayers,
   isRecording,
   setIsRecording,
-  isPlaying,
   togglePlay,
   seekSeconds,
   handleUndo,
@@ -153,7 +152,9 @@ export default function useGamepadController({
                   const synthPreview = new Tone.Synth().toDestination();
                   synthPreview.volume.value = -12;
                   synthPreview.triggerAttackRelease(note.name, '16n');
-                } catch {}
+                } catch {
+                  // ignore
+                }
               }
             }
             return { ...prev, index: nextIndex };

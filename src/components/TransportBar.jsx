@@ -10,7 +10,8 @@ import {
   Timer,
   Disc3,
   Rewind,
-  FastForward
+  FastForward,
+  Repeat
 } from 'lucide-react';
 
 const RHYTHM_MODES = ['off', 'auto', 'four-floor', 'boom-bap', 'ballad'];
@@ -24,6 +25,8 @@ const RHYTHM_LABELS = {
 
 export default function TransportBar({
   isPlaying,
+  isLooping,
+  setIsLooping,
   togglePlay,
   seekSeconds,
   isRecording,
@@ -70,10 +73,27 @@ export default function TransportBar({
     canvas.height = 32;
 
     let animationId;
+    const peaks = new Array(10).fill(0);
 
     const draw = () => {
       animationId = requestAnimationFrame(draw);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw subtle grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 0.5;
+      for (let x = 0; x < canvas.width; x += 8) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 6) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
 
       const barCount = 10;
       const barWidth = 5;
@@ -104,18 +124,38 @@ export default function TransportBar({
         const x = i * (barWidth + spacing);
         const y = canvas.height - barHeight;
 
+        // Peak decay calculation
+        if (barHeight > peaks[i]) {
+          peaks[i] = barHeight;
+        } else {
+          peaks[i] = Math.max(0, peaks[i] - 0.45);
+        }
+
+        // Equalizer Bar Glow Shadow
+        ctx.shadowColor = currentTheme.color;
+        ctx.shadowBlur = 4;
+
         // Visualizer gradient
         const grad = ctx.createLinearGradient(0, canvas.height, 0, 0);
-        grad.addColorStop(0, `${currentTheme.color}66`);
-        grad.addColorStop(0.5, currentTheme.color);
+        grad.addColorStop(0, `${currentTheme.color}33`);
+        grad.addColorStop(0.6, currentTheme.color);
         grad.addColorStop(1, '#ffffff');
 
         ctx.fillStyle = grad;
 
         // Rounded equalizer bars
         ctx.beginPath();
-        ctx.roundRect(x, y, barWidth, barHeight, 2);
+        ctx.roundRect(x, y, barWidth, barHeight, 1.5);
         ctx.fill();
+
+        // Reset shadow for peaks
+        ctx.shadowBlur = 0;
+
+        // Draw falling peak dot
+        if (peaks[i] > 1) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(x, canvas.height - peaks[i] - 1.5, barWidth, 1.5);
+        }
       }
     };
 
@@ -130,22 +170,32 @@ export default function TransportBar({
   const bpmPercent = ((bpm - 40) / 240) * 100;
 
   return (
-    <footer className="h-24 bg-black/45 backdrop-blur-3xl border-t border-white/[0.06] flex items-center justify-center px-4 z-50 shrink-0 relative shadow-[0_-4px_30px_rgba(0,0,0,0.5)]">
-      <div className="w-full max-w-[1600px] px-16 grid grid-cols-[1.25fr_auto_1.25fr] items-center gap-6">
+    <footer className="h-20 bg-black/45 backdrop-blur-3xl border-t border-white/[0.06] flex items-center justify-center px-4 z-50 shrink-0 relative shadow-[0_-4px_30px_rgba(0,0,0,0.5)]">
+      {/* Bottom accent neon line */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-[2px]"
+        style={{
+          background: 'linear-gradient(90deg, #ff3366, #ff9f43, #2ebd59, #00f0ff, #0066ff, #ff3366)',
+          backgroundSize: '300% 300%',
+          animation: 'rainbowBorder 8s linear infinite',
+          boxShadow: '0 0 14px rgba(0, 240, 255, 0.4)'
+        }}
+      />
+      <div className="w-full max-w-[1600px] px-16 grid grid-cols-[1.25fr_auto_1.25fr] items-center gap-6 transport-inner">
         {/* LEFT: View + Mixer + Rhythm */}
-        <div className="flex items-center gap-4 justify-self-start">
+        <div className="flex items-center gap-4 justify-self-start transport-left">
         {/* View Toggle */}
         <div className="flex items-center glass-gloss rounded-2xl p-1.5 shadow-md">
-          {['studio', 'stage'].map(mode => (
+          {['studio', 'stage', 'stage-h'].map(mode => (
             <button 
               key={mode}
               onClick={() => setViewMode(mode)}
-              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-200 cursor-pointer active:scale-95
+              className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200 cursor-pointer active:scale-95
                 ${viewMode === mode 
                   ? 'bg-white text-black shadow-[0_4px_12px_rgba(255,255,255,0.15)] scale-[1.02]' 
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.03]'}`}
             >
-              {mode}
+              {mode === 'stage-h' ? 'STAGE (H)' : mode === 'stage' ? 'STAGE (V)' : 'STUDIO'}
             </button>
           ))}
         </div>
@@ -242,6 +292,18 @@ export default function TransportBar({
           <FastForward className="w-4 h-4 fill-current" />
         </button>
 
+        {/* Repeat/Loop */}
+        <button
+          onClick={() => setIsLooping && setIsLooping(!isLooping)}
+          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer hover:scale-[1.05] active:scale-95 border
+            ${isLooping
+              ? 'bg-cyan-500/15 border-cyan-400/40 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.15)]'
+              : 'glass-gloss border-transparent text-slate-400 hover:text-slate-200'}`}
+          title={isLooping ? 'Repeat: ON (Loop timeline)' : 'Repeat: OFF (Play once)'}
+        >
+          <Repeat className="w-4 h-4" />
+        </button>
+
         {/* Position + Progress + Mini Visualizer */}
         <div className="flex items-center gap-5">
           <div className="flex flex-col items-center gap-1.5 w-48 select-none">
@@ -259,7 +321,8 @@ export default function TransportBar({
                 className="h-full rounded-full transition-none"
                 style={{ 
                   width: `${progressPct}%`,
-                  background: `linear-gradient(90deg, ${currentTheme.color}, ${currentTheme.color}a0)`
+                  background: 'linear-gradient(90deg, #ff3366, #ff9f43, #2ebd59, #00f0ff, #0066ff)',
+                  boxShadow: '0 0 8px rgba(0, 240, 255, 0.6)'
                 }}
               />
             </div>
@@ -273,7 +336,7 @@ export default function TransportBar({
       </div>
 
       {/* RIGHT: Volume, BPM, Clear */}
-      <div className="flex items-center gap-5 justify-self-end">
+      <div className="flex items-center gap-5 justify-self-end transport-right">
         {/* Master Volume */}
         <div className="flex items-center gap-3 glass-gloss rounded-2xl pl-4 pr-3 py-2 shadow-md relative">
           <Volume2 className="w-4 h-4 text-slate-400" />
@@ -282,10 +345,11 @@ export default function TransportBar({
           <div className="relative flex items-center h-5 w-20 select-none group">
             <div className="absolute left-0 right-0 h-1.5 rounded-full bg-white/10 overflow-hidden">
               <div 
-                className="h-full rounded-full bg-white"
+                className="h-full rounded-full"
                 style={{ 
                   width: `${volPercent}%`,
-                  boxShadow: '0 0 8px rgba(255,255,255,0.8)'
+                  background: `linear-gradient(90deg, #6366f1, ${currentTheme.color})`,
+                  boxShadow: `0 0 10px ${currentTheme.color}a0`
                 }}
               />
             </div>
@@ -358,10 +422,11 @@ export default function TransportBar({
           <div className="relative flex items-center h-5 w-24 select-none group">
             <div className="absolute left-0 right-0 h-1.5 rounded-full bg-white/10 overflow-hidden">
               <div 
-                className="h-full rounded-full bg-white"
+                className="h-full rounded-full"
                 style={{ 
                   width: `${bpmPercent}%`,
-                  boxShadow: '0 0 8px rgba(255,255,255,0.8)'
+                  background: `linear-gradient(90deg, #ec4899, ${currentTheme.color})`,
+                  boxShadow: `0 0 10px ${currentTheme.color}a0`
                 }}
               />
             </div>

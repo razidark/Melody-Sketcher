@@ -38,4 +38,27 @@ if (fs.existsSync(distDesktopPath)) {
   }
 }
 
+// 3. Auto-increment package.json patch version
+const packageJsonPath = path.join(__dirname, 'package.json');
+if (fs.existsSync(packageJsonPath)) {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    const oldVersion = pkg.version || '1.0.0';
+    const parts = oldVersion.split('.');
+    if (parts.length === 3) {
+      const patch = parseInt(parts[2], 10);
+      if (!isNaN(patch)) {
+        parts[2] = (patch + 1).toString();
+        const newVersion = parts.join('.');
+        pkg.version = newVersion;
+        fs.writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+        console.log(`Auto-bumped version: ${oldVersion} -> ${newVersion}`);
+      }
+    }
+  } catch (err) {
+    console.error('Error auto-bumping package.json version:', err.message);
+  }
+}
+
 console.log('----------------------------------------');
+

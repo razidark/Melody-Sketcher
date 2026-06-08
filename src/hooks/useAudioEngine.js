@@ -1,7 +1,35 @@
+/**
+ * @file useAudioEngine.js
+ * @description Core Web Audio DSP coordinator. Instantiates the master effects rack (Distortion,
+ * Chorus, Phaser, Delay, Reverb, EQ3, Limiter), sets up the multitrack channel strips (volume,
+ * pan, mute, solo), manages the drum-machine sub-bus, and exposes a high-frequency real-time
+ * FFT analyser for dashboard animations.
+ * @module useAudioEngine
+ */
+
 import { useEffect, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
 import { createInstrument } from '../utils/instrumentFactory';
 
+/**
+ * Custom React hook managing the lifecycle and real-time parameters of the Tone.js audio engine.
+ * 
+ * @param {Object} params
+ * @param {Array} params.layers - Active sequencer tracks containing volumes, pans, cuts, and ADSR attributes
+ * @param {number} params.reverbLevel - Master JCReverb mix value (0 to 1)
+ * @param {number} params.delayLevel - Master Delay wetness value (0 to 1)
+ * @param {number} params.distortionLevel - Master Distortion grit amount (0 to 1)
+ * @param {number} params.chorusLevel - Master Chorus wet level (0 to 1)
+ * @param {number} params.phaserLevel - Master Phaser wet level (0 to 1)
+ * @param {number} params.eqLowLevel - 3-Band EQ low-shelf decibels (-24 to +12)
+ * @param {number} params.eqMidLevel - 3-Band EQ mid-shelf decibels (-24 to +12)
+ * @param {number} params.eqHighLevel - 3-Band EQ high-shelf decibels (-24 to +12)
+ * @param {number} params.masterVolume - Main output decibel level (-60 to +6)
+ * @param {number} params.rhythmVolume - Drum-machine bus decibel level (-60 to +6)
+ * @param {boolean} params.rhythmMute - Drum bus mute flag
+ * @param {boolean} params.rhythmSolo - Drum bus solo flag
+ * @returns {Object} Exposes active refs, trigger helpers, and real-time VU meter hooks
+ */
 export default function useAudioEngine({
   layers,
   reverbLevel,

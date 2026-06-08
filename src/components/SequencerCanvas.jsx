@@ -2,7 +2,8 @@ import { forwardRef, useImperativeHandle, useRef, useEffect, useCallback } from 
 import { 
   NOTES_COUNT,
   ALL_NOTES,
-  TICKS_PER_BEAT
+  TICKS_PER_BEAT,
+  NOTE_TO_KEY_LABEL
 } from '../constants/midiConstants';
 import * as Tone from 'tone';
 
@@ -21,23 +22,70 @@ const SequencerCanvas = forwardRef(({
   totalTicks,
   BEAT_WIDTH,
   ROW_HEIGHT,
-  gamepadCursor
+  gamepadCursor,
+  scrubPlayhead
 }, ref) => {
   const canvasRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const rulerCanvasRef = useRef(null);
   
   const isDrawingRef = useRef(false);
   const isErasingRef = useRef(false);
+  const isScrubbingRef = useRef(false);
   const lastDrawnNoteRef = useRef(null);
   
   const sparklesRef = useRef([]);
   const hitParticlesRef = useRef([]);
   const playheadPositionRef = useRef(playheadPosition);
 
-  // Sync playhead position in real time for animation frame loop
+  // Sync playhead position ref when prop changes (scrub, step-record, etc.)
   useEffect(() => {
     playheadPositionRef.current = playheadPosition;
   }, [playheadPosition]);
+
+  // Real-time auto-scroll that tracks the live Tone.js playhead via requestAnimationFrame
+  useEffect(() => {
+    if (!isPlaying || viewMode !== 'studio') return;
+    let scrollAnimId;
+    let prevTick = -1;
+    const scrollLoop = () => {
+      scrollAnimId = requestAnimationFrame(scrollLoop);
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      // Read the real-time playhead from Tone.js transport
+      let currentTick = playheadPositionRef.current;
+      try {
+        if (Tone.Transport.state === 'started') {
+          const ticks = Tone.Transport.getTicksAtTime(Tone.now());
+          currentTick = Math.round(ticks / (Tone.Transport.PPQ / TICKS_PER_BEAT)) % totalTicks;
+          playheadPositionRef.current = currentTick;
+        }
+      } catch { /* ignore */ }
+
+      if (currentTick === prevTick) return;
+      prevTick = currentTick;
+
+      const px = currentTick * BEAT_WIDTH;
+      const shadeEl = document.getElementById('studio-playhead-shade');
+      const lineEl = document.getElementById('studio-playhead-line');
+      if (shadeEl) shadeEl.style.width = `${px}px`;
+      if (lineEl) lineEl.style.left = `${px}px`;
+
+      const scrollLeftVal = container.scrollLeft;
+      const visibleWidth = container.clientWidth;
+
+      // Auto-scroll when playhead goes beyond 75% of visible area
+      if (px > scrollLeftVal + visibleWidth * 0.75) {
+        container.scrollLeft = Math.max(0, px - visibleWidth * 0.25);
+      } else if (px < scrollLeftVal) {
+        // Jump back if it loops to the beginning
+        container.scrollLeft = Math.max(0, px - visibleWidth * 0.15);
+      }
+    };
+    scrollLoop();
+    return () => cancelAnimationFrame(scrollAnimId);
+  }, [isPlaying, viewMode, BEAT_WIDTH, totalTicks]);
 
   // Auto-scroll scroll container when gamepad cursor moves out of view
   useEffect(() => {
@@ -83,26 +131,50 @@ const SequencerCanvas = forwardRef(({
       }
     },
     triggerHitParticle(noteIndex, layerId) {
-      if (viewMode !== 'stage') return;
+      if (viewMode !== 'stage' && viewMode !== 'stage-h') return;
       const canvas = canvasRef.current;
       if (!canvas) return;
 
       const width = canvas.width;
-      const KEY_WIDTH = width / NOTES_COUNT;
-      const stageIndex = (ALL_NOTES.length - 1) - noteIndex;
-      const x = stageIndex * KEY_WIDTH + KEY_WIDTH / 2;
-      const y = canvas.height - 120; // PIANO_TOP
-
+      const height = canvas.height;
       const layer = layers.find(l => l.id === layerId);
       const color = layer?.color || '#ffffff';
 
+      let x, y;
+      let vxBase = 0, vyBase = 0;
+      let vxSpread, vySpread;
+
+      if (viewMode === 'stage') {
+        const KEY_WIDTH = width / NOTES_COUNT;
+        const stageIndex = (ALL_NOTES.length - 1) - noteIndex;
+        x = stageIndex * KEY_WIDTH + KEY_WIDTH / 2;
+        y = height - 120; // PIANO_TOP
+        vxSpread = 10;
+        vyBase = -8;
+        vySpread = 4;
+      } else {
+        const KEY_HEIGHT = height / NOTES_COUNT;
+        x = 120; // PIANO_LEFT
+        y = noteIndex * KEY_HEIGHT + KEY_HEIGHT / 2;
+        vxBase = 8;
+        vxSpread = 4;
+        vySpread = 10;
+      }
+
       // Create 16 particles for a gorgeous glass-shatter firework effect
       for (let i = 0; i < 16; i++) {
+        const vx = vxBase !== 0 
+          ? (Math.random() * vxSpread + vxBase) 
+          : ((Math.random() - 0.5) * vxSpread);
+        const vy = vyBase !== 0 
+          ? (-Math.random() * vySpread + vyBase) 
+          : ((Math.random() - 0.5) * vySpread);
+
         hitParticlesRef.current.push({
           x,
           y,
-          vx: (Math.random() - 0.5) * 10,
-          vy: -Math.random() * 8 - 4,
+          vx,
+          vy,
           size: Math.random() * 2 + 1,
           color,
           alpha: 1,
@@ -141,6 +213,81 @@ const SequencerCanvas = forwardRef(({
     }
   }, [BEAT_WIDTH, ROW_HEIGHT]);
 
+  // Draw the timeline ruler (bar numbers and beat markers)
+  const drawRuler = useCallback(() => {
+    const rulerCanvas = rulerCanvasRef.current;
+    const container = scrollContainerRef.current;
+    if (!rulerCanvas || !container || viewMode !== 'studio') return;
+
+    const width = container.clientWidth;
+    const RULER_H = 24;
+    if (rulerCanvas.width !== width) rulerCanvas.width = width;
+    if (rulerCanvas.height !== RULER_H) rulerCanvas.height = RULER_H;
+
+    const ctx = rulerCanvas.getContext('2d');
+    ctx.clearRect(0, 0, width, RULER_H);
+
+    const scrollLeft = container.scrollLeft;
+    const startTick = Math.max(0, Math.floor(scrollLeft / BEAT_WIDTH));
+    const endTick = Math.min(totalTicks, Math.ceil((scrollLeft + width) / BEAT_WIDTH));
+
+    // Background gradient
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, 0, width, RULER_H);
+
+    // Bottom border
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, RULER_H - 0.5);
+    ctx.lineTo(width, RULER_H - 0.5);
+    ctx.stroke();
+
+    for (let i = startTick; i <= endTick; i++) {
+      const x = i * BEAT_WIDTH - scrollLeft;
+      const isBar = i % 4 === 0;
+      const isBeat = i % 1 === 0;
+
+      if (isBar) {
+        // Bar line
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, 2);
+        ctx.lineTo(x, RULER_H - 2);
+        ctx.stroke();
+
+        // Bar number
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = 'bold 9px Outfit, Inter, sans-serif';
+        ctx.fillText(`${(i / 4) + 1}`, x + 4, 14);
+      } else if (isBeat) {
+        // Beat tick
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, RULER_H - 7);
+        ctx.lineTo(x, RULER_H - 2);
+        ctx.stroke();
+      }
+    }
+
+    // Playhead marker on ruler
+    const playheadX = playheadPositionRef.current * BEAT_WIDTH - scrollLeft;
+    if (playheadX >= 0 && playheadX <= width) {
+      ctx.fillStyle = currentTheme.color;
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = currentTheme.color;
+      ctx.beginPath();
+      ctx.moveTo(playheadX - 4, RULER_H);
+      ctx.lineTo(playheadX + 4, RULER_H);
+      ctx.lineTo(playheadX, RULER_H - 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }, [viewMode, BEAT_WIDTH, totalTicks, currentTheme]);
+
   // Redraw grid callback
   const drawGrid = useCallback(() => {
     const canvas = canvasRef.current;
@@ -168,17 +315,25 @@ const SequencerCanvas = forwardRef(({
     const scrollLeft = container.scrollLeft;
     const scrollTop = container.scrollTop;
 
-    const isStage = viewMode === 'stage';
+    const isStage = viewMode === 'stage' || viewMode === 'stage-h';
     const KEY_WIDTH = width / NOTES_COUNT;
+    const KEY_HEIGHT = height / NOTES_COUNT;
     const STAGE_BEAT_HEIGHT = 60 * zoom;
+    const STAGE_BEAT_WIDTH = 60 * zoom;
     const PIANO_HEIGHT = 120;
+    const PIANO_LEFT = 120;
     const PIANO_TOP = height - PIANO_HEIGHT;
 
     // Viewport Culling limits
     let minX, maxX, minY, maxY;
     if (isStage) {
-      minX = 0; maxX = width;
-      minY = 0; maxY = PIANO_TOP;
+      if (viewMode === 'stage') {
+        minX = 0; maxX = width;
+        minY = 0; maxY = PIANO_TOP;
+      } else {
+        minX = PIANO_LEFT; maxX = width;
+        minY = 0; maxY = height;
+      }
     } else {
       minX = -BEAT_WIDTH * 2;
       maxX = clientWidth + BEAT_WIDTH * 2;
@@ -187,6 +342,15 @@ const SequencerCanvas = forwardRef(({
     }
 
     ctx.clearRect(0, 0, width, height);
+    if (!isStage) {
+      // Sleek obsidian backing for the grid
+      ctx.fillStyle = '#050508';
+      ctx.fillRect(0, 24, width, height - 24);
+    } else {
+      // Dark backdrop for stage modes
+      ctx.fillStyle = '#030306';
+      ctx.fillRect(0, 0, width, height);
+    }
 
     if (!isStage) {
       const startTick = Math.max(0, Math.floor(scrollLeft / BEAT_WIDTH));
@@ -195,7 +359,7 @@ const SequencerCanvas = forwardRef(({
       // Studio grid rows
       for (let i = 0; i < ALL_NOTES.length; i++) {
         const note = ALL_NOTES[i];
-        const y = i * ROW_HEIGHT;
+        const y = i * ROW_HEIGHT + 24;
         if (y + ROW_HEIGHT < scrollTop || y > scrollTop + clientHeight) continue;
         
         const canvasY = y - scrollTop;
@@ -224,54 +388,84 @@ const SequencerCanvas = forwardRef(({
         ctx.strokeStyle = isBar ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.04)';
         ctx.lineWidth = isBar ? 2 : 1;
         ctx.beginPath();
-        ctx.moveTo(canvasX, 0);
+        ctx.moveTo(canvasX, 24);
         ctx.lineTo(canvasX, clientHeight);
         ctx.stroke();
-        if (isBar) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-          ctx.font = 'bold 10px Inter';
-          ctx.fillText(`${(i / 4) + 1}`, canvasX + 5, 15);
-        }
       }
     } else {
-      // Stage Mode backdrop columns
-      for (let i = 0; i < ALL_NOTES.length; i++) {
-        const note = ALL_NOTES[i];
-        const stageIndex = (ALL_NOTES.length - 1) - i;
-        const x = stageIndex * KEY_WIDTH;
-        const isSharp = note.name.includes('#');
-        ctx.fillStyle = isSharp ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.02)';
-        ctx.fillRect(x, 0, KEY_WIDTH, PIANO_TOP);
-        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-        ctx.strokeRect(x, 0, KEY_WIDTH, PIANO_TOP);
+      if (viewMode === 'stage') {
+        // Stage Mode backdrop columns
+        for (let i = 0; i < ALL_NOTES.length; i++) {
+          const note = ALL_NOTES[i];
+          const stageIndex = (ALL_NOTES.length - 1) - i;
+          const x = stageIndex * KEY_WIDTH;
+          const isSharp = note.name.includes('#');
+          ctx.fillStyle = isSharp ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.02)';
+          ctx.fillRect(x, 0, KEY_WIDTH, PIANO_TOP);
+          ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+          ctx.strokeRect(x, 0, KEY_WIDTH, PIANO_TOP);
+        }
+      } else {
+        // Stage Horizontal backdrop rows
+        for (let i = 0; i < ALL_NOTES.length; i++) {
+          const note = ALL_NOTES[i];
+          const y = i * KEY_HEIGHT;
+          const isSharp = note.name.includes('#');
+          ctx.fillStyle = isSharp ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.02)';
+          ctx.fillRect(PIANO_LEFT, y, width - PIANO_LEFT, KEY_HEIGHT);
+          ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+          ctx.strokeRect(PIANO_LEFT, y, width - PIANO_LEFT, KEY_HEIGHT);
+        }
       }
 
-      // Light beams shooting up from active keys
+      // Light beams shooting up/across from active keys
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
       for (let i = 0; i < ALL_NOTES.length; i++) {
         const note = ALL_NOTES[i];
-        const stageIndex = (ALL_NOTES.length - 1) - i;
-        const x = stageIndex * KEY_WIDTH;
         const isActive = activeKeys[note.name];
         if (isActive) {
-          const gradient = ctx.createLinearGradient(x + KEY_WIDTH / 2, PIANO_TOP, x + KEY_WIDTH / 2, 0);
           const beamColor = typeof isActive === 'string' ? isActive : (activeLayer.color || '#ffffff');
-          gradient.addColorStop(0, `${beamColor}99`);
-          gradient.addColorStop(0.4, `${beamColor}3d`);
-          gradient.addColorStop(1, `${beamColor}00`);
-          ctx.fillStyle = gradient;
-          ctx.fillRect(x, 0, KEY_WIDTH, PIANO_TOP);
+          
+          if (viewMode === 'stage') {
+            const stageIndex = (ALL_NOTES.length - 1) - i;
+            const x = stageIndex * KEY_WIDTH;
+            const gradient = ctx.createLinearGradient(x + KEY_WIDTH / 2, PIANO_TOP, x + KEY_WIDTH / 2, 0);
+            gradient.addColorStop(0, `${beamColor}99`);
+            gradient.addColorStop(0.4, `${beamColor}3d`);
+            gradient.addColorStop(1, `${beamColor}00`);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, 0, KEY_WIDTH, PIANO_TOP);
 
-          // Add a beautiful neon flare splash at the bottom base on collision!
-          const flare = ctx.createRadialGradient(x + KEY_WIDTH / 2, PIANO_TOP, 0, x + KEY_WIDTH / 2, PIANO_TOP, KEY_WIDTH * 1.5);
-          flare.addColorStop(0, '#ffffff');
-          flare.addColorStop(0.3, `${beamColor}cc`);
-          flare.addColorStop(1, `${beamColor}00`);
-          ctx.fillStyle = flare;
-          ctx.beginPath();
-          ctx.arc(x + KEY_WIDTH / 2, PIANO_TOP, KEY_WIDTH * 1.5, 0, Math.PI, true);
-          ctx.fill();
+            // Add a beautiful neon flare splash at the bottom base on collision!
+            const flare = ctx.createRadialGradient(x + KEY_WIDTH / 2, PIANO_TOP, 0, x + KEY_WIDTH / 2, PIANO_TOP, KEY_WIDTH * 1.5);
+            flare.addColorStop(0, '#ffffff');
+            flare.addColorStop(0.3, `${beamColor}cc`);
+            flare.addColorStop(1, `${beamColor}00`);
+            ctx.fillStyle = flare;
+            ctx.beginPath();
+            ctx.arc(x + KEY_WIDTH / 2, PIANO_TOP, KEY_WIDTH * 1.5, 0, Math.PI, true);
+            ctx.fill();
+          } else {
+            // Stage Horizontal light beams
+            const y = i * KEY_HEIGHT;
+            const gradient = ctx.createLinearGradient(PIANO_LEFT, y + KEY_HEIGHT / 2, width, y + KEY_HEIGHT / 2);
+            gradient.addColorStop(0, `${beamColor}99`);
+            gradient.addColorStop(0.4, `${beamColor}3d`);
+            gradient.addColorStop(1, `${beamColor}00`);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(PIANO_LEFT, y, width - PIANO_LEFT, KEY_HEIGHT);
+
+            // Add a beautiful neon flare splash on the left base on collision!
+            const flare = ctx.createRadialGradient(PIANO_LEFT, y + KEY_HEIGHT / 2, 0, PIANO_LEFT, y + KEY_HEIGHT / 2, KEY_HEIGHT * 2.5);
+            flare.addColorStop(0, '#ffffff');
+            flare.addColorStop(0.3, `${beamColor}cc`);
+            flare.addColorStop(1, `${beamColor}00`);
+            ctx.fillStyle = flare;
+            ctx.beginPath();
+            ctx.arc(PIANO_LEFT, y + KEY_HEIGHT / 2, KEY_HEIGHT * 2.5, -Math.PI / 2, Math.PI / 2, false);
+            ctx.fill();
+          }
         }
       }
       ctx.restore();
@@ -299,19 +493,31 @@ const SequencerCanvas = forwardRef(({
         let nx, ny, nw, nh;
 
         if (isStage) {
-          const stageIndex = (ALL_NOTES.length - 1) - note.index;
-          nx = stageIndex * KEY_WIDTH;
-          
-          // Fix wrap-around visually (if note is at tick 0 and playhead is at 127)
-          let distance = note.tick - realPlayhead;
-          if (distance < -totalTicks / 2) distance += totalTicks;
-          
-          ny = PIANO_TOP - distance * STAGE_BEAT_HEIGHT;
-          nw = KEY_WIDTH - 2;
-          nh = STAGE_BEAT_HEIGHT - 2;
+          if (viewMode === 'stage') {
+            const stageIndex = (ALL_NOTES.length - 1) - note.index;
+            nx = stageIndex * KEY_WIDTH;
+            
+            // Fix wrap-around visually (if note is at tick 0 and playhead is at 127)
+            let distance = note.tick - realPlayhead;
+            if (distance < -totalTicks / 2) distance += totalTicks;
+            
+            ny = PIANO_TOP - distance * STAGE_BEAT_HEIGHT;
+            nw = KEY_WIDTH - 2;
+            nh = STAGE_BEAT_HEIGHT - 2;
+          } else {
+            // Stage Horizontal layout: notes scroll right-to-left
+            ny = note.index * KEY_HEIGHT;
+            
+            let distance = note.tick - realPlayhead;
+            if (distance < -totalTicks / 2) distance += totalTicks;
+            
+            nx = PIANO_LEFT + distance * STAGE_BEAT_WIDTH;
+            nw = STAGE_BEAT_WIDTH - 2;
+            nh = KEY_HEIGHT - 1;
+          }
         } else {
           nx = note.tick * BEAT_WIDTH - scrollLeft;
-          ny = note.index * ROW_HEIGHT - scrollTop;
+          ny = note.index * ROW_HEIGHT - scrollTop + 24;
           nw = BEAT_WIDTH - 4;
           nh = ROW_HEIGHT - 4;
         }
@@ -319,19 +525,31 @@ const SequencerCanvas = forwardRef(({
         // Culling
         if (nx + nw >= minX && nx <= maxX && ny + nh >= minY && ny <= maxY) {
           if (isStage) {
-            const isStriking = (ny + nh >= PIANO_TOP - 15) && (ny + nh <= PIANO_TOP + 15);
+            const isStageV = viewMode === 'stage';
+            const isStriking = isStageV 
+              ? (ny + nh >= PIANO_TOP - 15) && (ny + nh <= PIANO_TOP + 15)
+              : (nx >= PIANO_LEFT - 15) && (nx <= PIANO_LEFT + 15);
             
-            // Glowing trail above the falling note
-            const trailLen = nh * 4;
-            const trailGradient = ctx.createLinearGradient(nx, ny, nx, ny - trailLen);
-            trailGradient.addColorStop(0, `${layerColor}4d`);
-            trailGradient.addColorStop(0.5, `${layerColor}1a`);
-            trailGradient.addColorStop(1, `${layerColor}00`);
-            
+            // Glowing trail trailing behind the note
             ctx.save();
             ctx.globalCompositeOperation = 'screen';
-            ctx.fillStyle = trailGradient;
-            ctx.fillRect(nx + 1.5, ny - trailLen, nw - 2, trailLen);
+            if (isStageV) {
+              const trailLen = nh * 4;
+              const trailGradient = ctx.createLinearGradient(nx, ny, nx, ny - trailLen);
+              trailGradient.addColorStop(0, `${layerColor}4d`);
+              trailGradient.addColorStop(0.5, `${layerColor}1a`);
+              trailGradient.addColorStop(1, `${layerColor}00`);
+              ctx.fillStyle = trailGradient;
+              ctx.fillRect(nx + 1.5, ny - trailLen, nw - 2, trailLen);
+            } else {
+              const trailLen = nw * 4;
+              const trailGradient = ctx.createLinearGradient(nx + nw, ny, nx + nw + trailLen, ny);
+              trailGradient.addColorStop(0, `${layerColor}4d`);
+              trailGradient.addColorStop(0.5, `${layerColor}1a`);
+              trailGradient.addColorStop(1, `${layerColor}00`);
+              ctx.fillStyle = trailGradient;
+              ctx.fillRect(nx + nw, ny + 0.5, trailLen, nh - 1);
+            }
             ctx.restore();
 
             // Main Glass/Translucent fill
@@ -345,7 +563,7 @@ const SequencerCanvas = forwardRef(({
             ctx.shadowColor = layerColor;
             
             ctx.beginPath();
-            const rad = Math.min(6, nw / 2 - 1);
+            const rad = isStageV ? Math.min(6, nw / 2 - 1) : Math.min(3, nh / 2 - 0.5);
             ctx.roundRect(nx + 1, ny + 1, nw - 1, nh - 1, rad);
             ctx.fill();
             ctx.restore();
@@ -502,7 +720,7 @@ const SequencerCanvas = forwardRef(({
         const age = (now - s.startTime) / 1000;
         const opacity = 1 - age;
         const sx = s.x - scrollLeft + Math.sin(age * 10) * 10;
-        const sy = s.y - scrollTop - age * 30;
+        const sy = s.y - scrollTop - age * 30 + 24;
         ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
         ctx.beginPath();
         ctx.arc(sx, sy, 2 * (1 - age), 0, Math.PI * 2);
@@ -513,7 +731,7 @@ const SequencerCanvas = forwardRef(({
       // Gamepad Selector Cursor (Studio)
       if (gamepadCursor) {
         const cx = gamepadCursor.tick * BEAT_WIDTH - scrollLeft;
-        const cy = gamepadCursor.index * ROW_HEIGHT - scrollTop;
+        const cy = gamepadCursor.index * ROW_HEIGHT - scrollTop + 24;
         const cw = BEAT_WIDTH;
         const ch = ROW_HEIGHT;
         
@@ -539,11 +757,11 @@ const SequencerCanvas = forwardRef(({
 
     // Piano keys & particles (Stage)
     if (isStage) {
+      const isStageV = viewMode === 'stage';
+      
       // White Keys
       for (let i = 0; i < ALL_NOTES.length; i++) {
         const note = ALL_NOTES[i];
-        const stageIndex = (ALL_NOTES.length - 1) - i;
-        const x = stageIndex * KEY_WIDTH;
         const isSharp = note.name.includes('#');
         const isActive = activeKeys[note.name];
 
@@ -551,52 +769,168 @@ const SequencerCanvas = forwardRef(({
           const keyColor = isActive ? (typeof isActive === 'string' ? isActive : activeLayer.color) : '#ffffff';
           ctx.fillStyle = keyColor;
           ctx.beginPath();
-          ctx.roundRect(x, PIANO_TOP, KEY_WIDTH, PIANO_HEIGHT, [0, 0, 6, 6]);
-          ctx.fill();
-          ctx.strokeStyle = '#000';
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
           
-          if (isActive) {
-            // Draw a bright neon gradient glow on white keys
-            const keyGlow = ctx.createLinearGradient(x, PIANO_TOP, x, PIANO_TOP + PIANO_HEIGHT);
-            keyGlow.addColorStop(0, 'rgba(255,255,255,0.8)');
-            keyGlow.addColorStop(0.3, `${keyColor}80`);
-            keyGlow.addColorStop(1, `${keyColor}00`);
-            ctx.fillStyle = keyGlow;
-            ctx.fillRect(x, PIANO_TOP, KEY_WIDTH, PIANO_HEIGHT);
+          if (isStageV) {
+            const stageIndex = (ALL_NOTES.length - 1) - i;
+            const x = stageIndex * KEY_WIDTH;
+            ctx.roundRect(x, PIANO_TOP, KEY_WIDTH, PIANO_HEIGHT, [0, 0, 6, 6]);
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+            
+            if (isActive) {
+              const keyGlow = ctx.createLinearGradient(x, PIANO_TOP, x, PIANO_TOP + PIANO_HEIGHT);
+              keyGlow.addColorStop(0, 'rgba(255,255,255,0.8)');
+              keyGlow.addColorStop(0.3, `${keyColor}80`);
+              keyGlow.addColorStop(1, `${keyColor}00`);
+              ctx.fillStyle = keyGlow;
+              ctx.fillRect(x, PIANO_TOP, KEY_WIDTH, PIANO_HEIGHT);
+            } else {
+              ctx.fillStyle = 'rgba(0,0,0,0.06)';
+              ctx.fillRect(x, PIANO_TOP, KEY_WIDTH, 12);
+            }
+
+            // Draw note name inside white key (vertical layout)
+            ctx.save();
+            ctx.font = 'bold 8px sans-serif';
+            ctx.fillStyle = isActive ? '#000000' : 'rgba(0,0,0,0.45)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(note.name, x + KEY_WIDTH / 2, PIANO_TOP + PIANO_HEIGHT - 12);
+            
+            // Draw QWERTY key label if any
+            const keyLabel = NOTE_TO_KEY_LABEL[note.name];
+            if (keyLabel) {
+              ctx.font = '900 7px sans-serif';
+              ctx.fillStyle = isActive ? 'rgba(0,0,0,0.65)' : 'rgba(0,0,0,0.22)';
+              ctx.fillText(`[${keyLabel}]`, x + KEY_WIDTH / 2, PIANO_TOP + PIANO_HEIGHT - 3);
+            }
+            ctx.restore();
           } else {
-            ctx.fillStyle = 'rgba(0,0,0,0.06)';
-            ctx.fillRect(x, PIANO_TOP, KEY_WIDTH, 12);
+            // Stage Horizontal white keys
+            const y = i * KEY_HEIGHT;
+            ctx.roundRect(0, y, PIANO_LEFT, KEY_HEIGHT, [0, 4, 4, 0]);
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+            
+            if (isActive) {
+              const keyGlow = ctx.createLinearGradient(0, y, PIANO_LEFT, y);
+              keyGlow.addColorStop(0, 'rgba(255,255,255,0.8)');
+              keyGlow.addColorStop(0.3, `${keyColor}80`);
+              keyGlow.addColorStop(1, `${keyColor}00`);
+              ctx.fillStyle = keyGlow;
+              ctx.fillRect(0, y, PIANO_LEFT, KEY_HEIGHT);
+            } else {
+              ctx.fillStyle = 'rgba(0,0,0,0.06)';
+              ctx.fillRect(PIANO_LEFT - 12, y, 12, KEY_HEIGHT);
+            }
+
+            // Draw note name inside white key (horizontal layout)
+            ctx.save();
+            ctx.font = 'bold 8px sans-serif';
+            ctx.fillStyle = isActive ? '#000000' : 'rgba(0,0,0,0.45)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(note.name, 10, y + KEY_HEIGHT / 2);
+            
+            // Draw QWERTY key label if any
+            const keyLabel = NOTE_TO_KEY_LABEL[note.name];
+            if (keyLabel) {
+              ctx.font = '900 8px sans-serif';
+              ctx.fillStyle = isActive ? 'rgba(0,0,0,0.65)' : 'rgba(0,0,0,0.25)';
+              ctx.fillText(`[${keyLabel}]`, PIANO_LEFT - 25, y + KEY_HEIGHT / 2);
+            }
+            ctx.restore();
           }
         }
       }
+
       // Black Keys
       for (let i = 0; i < ALL_NOTES.length; i++) {
         const note = ALL_NOTES[i];
-        const stageIndex = (ALL_NOTES.length - 1) - i;
-        const x = stageIndex * KEY_WIDTH;
-        if (note.name.includes('#')) {
+        const isSharp = note.name.includes('#');
+
+        if (isSharp) {
           const isActive = activeKeys[note.name];
           const keyColor = isActive ? (typeof isActive === 'string' ? isActive : activeLayer.color) : '#111115';
           ctx.fillStyle = keyColor;
           ctx.beginPath();
-          ctx.roundRect(x, PIANO_TOP, KEY_WIDTH, PIANO_HEIGHT * 0.62, [0, 0, 4, 4]);
-          ctx.fill();
-          ctx.strokeStyle = '#000';
-          ctx.stroke();
           
-          if (isActive) {
-            // Draw gradient glow on black keys
-            const keyGlow = ctx.createLinearGradient(x, PIANO_TOP, x, PIANO_TOP + PIANO_HEIGHT * 0.62);
-            keyGlow.addColorStop(0, 'rgba(255,255,255,0.9)');
-            keyGlow.addColorStop(0.4, `${keyColor}99`);
-            keyGlow.addColorStop(1, `${keyColor}00`);
-            ctx.fillStyle = keyGlow;
-            ctx.fillRect(x, PIANO_TOP, KEY_WIDTH, PIANO_HEIGHT * 0.62);
+          if (isStageV) {
+            const stageIndex = (ALL_NOTES.length - 1) - i;
+            const x = stageIndex * KEY_WIDTH;
+            ctx.roundRect(x, PIANO_TOP, KEY_WIDTH, PIANO_HEIGHT * 0.62, [0, 0, 4, 4]);
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+            
+            if (isActive) {
+              const keyGlow = ctx.createLinearGradient(x, PIANO_TOP, x, PIANO_TOP + PIANO_HEIGHT * 0.62);
+              keyGlow.addColorStop(0, 'rgba(255,255,255,0.9)');
+              keyGlow.addColorStop(0.4, `${keyColor}99`);
+              keyGlow.addColorStop(1, `${keyColor}00`);
+              ctx.fillStyle = keyGlow;
+              ctx.fillRect(x, PIANO_TOP, KEY_WIDTH, PIANO_HEIGHT * 0.62);
+            } else {
+              ctx.fillStyle = 'rgba(255,255,255,0.08)';
+              ctx.fillRect(x + 1, PIANO_TOP + 1, KEY_WIDTH - 2, 4);
+            }
+
+            // Draw note name inside black key (vertical layout)
+            ctx.save();
+            ctx.font = 'bold 7px sans-serif';
+            ctx.fillStyle = isActive ? '#ffffff' : 'rgba(255,255,255,0.42)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(note.name, x + KEY_WIDTH / 2, PIANO_TOP + PIANO_HEIGHT * 0.62 - 10);
+            
+            // Draw QWERTY key label if any
+            const keyLabel = NOTE_TO_KEY_LABEL[note.name];
+            if (keyLabel) {
+              ctx.font = '900 6.5px sans-serif';
+              ctx.fillStyle = isActive ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.22)';
+              ctx.fillText(`[${keyLabel}]`, x + KEY_WIDTH / 2, PIANO_TOP + PIANO_HEIGHT * 0.62 - 2);
+            }
+            ctx.restore();
           } else {
-            ctx.fillStyle = 'rgba(255,255,255,0.08)';
-            ctx.fillRect(x + 1, PIANO_TOP + 1, KEY_WIDTH - 2, 4);
+            // Stage Horizontal black keys
+            const y = i * KEY_HEIGHT;
+            ctx.roundRect(0, y, PIANO_LEFT * 0.62, KEY_HEIGHT, [0, 3, 3, 0]);
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+            
+            if (isActive) {
+              const keyGlow = ctx.createLinearGradient(0, y, PIANO_LEFT * 0.62, y);
+              keyGlow.addColorStop(0, 'rgba(255,255,255,0.9)');
+              keyGlow.addColorStop(0.4, `${keyColor}99`);
+              keyGlow.addColorStop(1, `${keyColor}00`);
+              ctx.fillStyle = keyGlow;
+              ctx.fillRect(0, y, PIANO_LEFT * 0.62, KEY_HEIGHT);
+            } else {
+              ctx.fillStyle = 'rgba(255,255,255,0.08)';
+              ctx.fillRect(PIANO_LEFT * 0.62 - 4, y + 1, 4, KEY_HEIGHT - 2);
+            }
+
+            // Draw note name inside black key (horizontal layout)
+            ctx.save();
+            ctx.font = 'bold 7px sans-serif';
+            ctx.fillStyle = isActive ? '#ffffff' : 'rgba(255,255,255,0.42)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(note.name, 6, y + KEY_HEIGHT / 2);
+            
+            // Draw QWERTY key label if any
+            const keyLabel = NOTE_TO_KEY_LABEL[note.name];
+            if (keyLabel) {
+              ctx.font = '900 7px sans-serif';
+              ctx.fillStyle = isActive ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.22)';
+              ctx.fillText(`[${keyLabel}]`, PIANO_LEFT * 0.62 - 20, y + KEY_HEIGHT / 2);
+            }
+            ctx.restore();
           }
         }
       }
@@ -635,17 +969,29 @@ const SequencerCanvas = forwardRef(({
         ctx.restore();
       }
     }
-  }, [layers, activeLayerId, viewMode, zoom, BEAT_WIDTH, ROW_HEIGHT, totalTicks, activeKeys, isPlaying]);
+  }, [layers, activeLayerId, viewMode, zoom, BEAT_WIDTH, ROW_HEIGHT, totalTicks, activeKeys, isPlaying, currentTheme.color, gamepadCursor]);
 
   // Pointer interactions
   const handlePointerDown = (e) => {
-    if (viewMode === 'stage') return;
+    if (viewMode === 'stage' || viewMode === 'stage-h') return;
     const container = scrollContainerRef.current;
     if (!container) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left + container.scrollLeft;
-    const y = e.clientY - rect.top + container.scrollTop;
 
+    const clientY = e.clientY - rect.top;
+    const RULER_H = 24;
+
+    if (clientY < RULER_H) {
+      isScrubbingRef.current = true;
+      const tick = Math.floor(x / BEAT_WIDTH);
+      if (tick >= 0 && tick < totalTicks) {
+        scrubPlayhead?.(tick);
+      }
+      return;
+    }
+
+    const y = clientY - RULER_H + container.scrollTop;
     const tick = Math.floor(x / BEAT_WIDTH);
     const index = Math.floor(y / ROW_HEIGHT);
 
@@ -662,13 +1008,26 @@ const SequencerCanvas = forwardRef(({
   };
 
   const handlePointerMove = (e) => {
-    if (!isDrawingRef.current && !isErasingRef.current) return;
     const container = scrollContainerRef.current;
     if (!container) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left + container.scrollLeft;
-    const y = e.clientY - rect.top + container.scrollTop;
 
+    if (isScrubbingRef.current) {
+      const tick = Math.floor(x / BEAT_WIDTH);
+      if (tick >= 0 && tick < totalTicks) {
+        scrubPlayhead?.(tick);
+      }
+      return;
+    }
+
+    if (!isDrawingRef.current && !isErasingRef.current) return;
+
+    const clientY = e.clientY - rect.top;
+    const RULER_H = 24;
+    if (clientY < RULER_H) return;
+
+    const y = clientY - RULER_H + container.scrollTop;
     const tick = Math.floor(x / BEAT_WIDTH);
     const index = Math.floor(y / ROW_HEIGHT);
 
@@ -686,7 +1045,35 @@ const SequencerCanvas = forwardRef(({
   const handlePointerUp = () => {
     isDrawingRef.current = false;
     isErasingRef.current = false;
+    isScrubbingRef.current = false;
     lastDrawnNoteRef.current = null;
+  };
+
+  // Global pointerup listener to prevent stuck drawing/scrubbing states if released outside grid
+  useEffect(() => {
+    const handleGlobalPointerUp = () => {
+      isDrawingRef.current = false;
+      isErasingRef.current = false;
+      isScrubbingRef.current = false;
+      lastDrawnNoteRef.current = null;
+    };
+    window.addEventListener('pointerup', handleGlobalPointerUp);
+    window.addEventListener('pointercancel', handleGlobalPointerUp);
+    return () => {
+      window.removeEventListener('pointerup', handleGlobalPointerUp);
+      window.removeEventListener('pointercancel', handleGlobalPointerUp);
+    };
+  }, []);
+
+  // Ruler wheel scrubbing
+  const handleRulerWheel = (e) => {
+    e.preventDefault();
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (delta === 0) return;
+    const direction = delta > 0 ? 1 : -1;
+    const currentTick = playheadPositionRef.current;
+    const nextTick = (currentTick + direction + totalTicks) % totalTicks;
+    scrubPlayhead?.(nextTick);
   };
 
   // Scroll sync
@@ -696,36 +1083,50 @@ const SequencerCanvas = forwardRef(({
         pianoKeysRef.current.scrollTop = scrollContainerRef.current.scrollTop;
       }
       drawGrid();
+      drawRuler();
     }
   };
 
   // Redraw loops
   useEffect(() => {
     drawGrid();
+    drawRuler();
     const handleResize = () => {
       drawGrid();
+      drawRuler();
     };
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [drawGrid]);
+  }, [drawGrid, drawRuler]);
 
   useEffect(() => {
-    if (viewMode === 'stage' || isPlaying) {
+    if (viewMode === 'stage' || viewMode === 'stage-h' || isPlaying) {
       let animationFrame;
       const render = () => {
         drawGrid();
+        if (viewMode === 'studio') {
+          drawRuler();
+          const currentTick = playheadPositionRef.current;
+          const px = currentTick * BEAT_WIDTH;
+          const shadeEl = document.getElementById('studio-playhead-shade');
+          const lineEl = document.getElementById('studio-playhead-line');
+          if (shadeEl) shadeEl.style.width = `${px}px`;
+          if (lineEl) lineEl.style.left = `${px}px`;
+        }
         animationFrame = requestAnimationFrame(render);
       };
       render();
       return () => cancelAnimationFrame(animationFrame);
     } else {
       drawGrid();
+      if (viewMode === 'studio') drawRuler();
       if (sparklesRef.current.length > 0) {
         let animationFrame;
         const render = () => {
           drawGrid();
+          if (viewMode === 'studio') drawRuler();
           if (sparklesRef.current.length > 0) {
             animationFrame = requestAnimationFrame(render);
           }
@@ -736,7 +1137,7 @@ const SequencerCanvas = forwardRef(({
         };
       }
     }
-  }, [drawGrid, viewMode, isPlaying]);
+  }, [drawGrid, drawRuler, viewMode, isPlaying, BEAT_WIDTH]);
 
   return (
     <div 
@@ -751,27 +1152,43 @@ const SequencerCanvas = forwardRef(({
       <div 
         style={{ 
           width: `${totalTicks * BEAT_WIDTH}px`, 
-          height: `${ALL_NOTES.length * ROW_HEIGHT}px` 
+          height: `${viewMode === 'studio' ? ALL_NOTES.length * ROW_HEIGHT + 24 : ALL_NOTES.length * ROW_HEIGHT}px` 
         }} 
         className="absolute top-0 left-0 pointer-events-none"
       />
-      <canvas ref={canvasRef} className="block cursor-crosshair sticky top-0 left-0" />
+      <div className="sticky top-0 left-0 z-0 h-0 w-full overflow-visible pointer-events-none">
+        <canvas ref={canvasRef} className="absolute top-0 left-0 block cursor-crosshair pointer-events-auto" />
+        {viewMode === 'studio' && (
+          <canvas 
+            ref={rulerCanvasRef} 
+            className="absolute top-0 left-0 block z-20 cursor-ew-resize border-b border-white/[0.08] pointer-events-auto" 
+            style={{ height: '24px' }} 
+            onWheel={handleRulerWheel}
+          />
+        )}
+      </div>
+
       {viewMode === 'studio' && (
         <>
           <div 
-            className="absolute top-0 bottom-0 pointer-events-none z-[5] opacity-25"
+            id="studio-playhead-shade"
+            className="absolute pointer-events-none z-[5]"
             style={{
-              background: `linear-gradient(to left, ${currentTheme.color}35, transparent)`,
-              width: `${Math.min(160, playheadPosition * BEAT_WIDTH)}px`,
-              left: `${Math.max(0, playheadPosition * BEAT_WIDTH - 160)}px`
+              top: '24px',
+              height: `${ALL_NOTES.length * ROW_HEIGHT}px`,
+              background: 'linear-gradient(90deg, rgba(255, 46, 147, 0.015) 0%, rgba(0, 240, 255, 0.05) 100%)',
+              width: `${playheadPosition * BEAT_WIDTH}px`,
+              left: 0
             }}
           />
           <div 
             id="studio-playhead-line"
-            className="absolute top-0 bottom-0 w-0.5 pointer-events-none z-10"
+            className="absolute w-[1.5px] pointer-events-none z-10"
             style={{
-              background: `linear-gradient(to bottom, #fff, ${currentTheme.color})`,
-              boxShadow: `0 0 12px 1px ${currentTheme.color}`,
+              top: '24px',
+              height: `${ALL_NOTES.length * ROW_HEIGHT}px`,
+              background: 'linear-gradient(to bottom, #ffffff, #00f0ff)',
+              boxShadow: '0 0 8px 1px #00f0ff',
               left: `${playheadPosition * BEAT_WIDTH}px`
             }}
           />
