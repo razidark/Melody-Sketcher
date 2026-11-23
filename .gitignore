@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build & Desktop Exporter Output
+dist/
+dist-desktop/
+dist-ssr/
+dist-electron/
+build/
+out/
+
+# Executables & Installer Binaries
+*.exe
+*.msi
+*.AppImage
+*.dmg
+*.blockmap
+
+# Environment & Config
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# System & OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
