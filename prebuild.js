@@ -19,7 +19,8 @@ if (process.platform === 'win32') {
   }
   try {
     console.log('Checking for stray electron processes...');
-    execSync('taskkill /f /im "electron.exe" /t 2>nul');
+    // Only kill Melody Sketcher's own Electron, not every Electron app (VS Code, Discord, etc.)
+    execSync('wmic process where "name=\'electron.exe\' and commandline like \'%Melody Sketcher%\'" call terminate 2>nul');
     console.log('Successfully closed stray electron processes.');
   } catch {
     // Ignore if not running
